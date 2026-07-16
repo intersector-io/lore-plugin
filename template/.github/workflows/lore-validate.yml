@@ -1,0 +1,40 @@
+name: lore validate
+
+# Main Invariant (docs/adr/0002-meta-schema-in-code.md, CONTEXT.md): PRs
+# validate only the files they touch (fast path), unless the diff touches a
+# Type Record (org/type/) or .lore/ config, in which case `lore validate`
+# escalates to full-repo validation itself — this workflow only decides
+# which base ref to diff against, never which mode to run.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history is required: `lore validate --changed` diffs against
+          # the PR's base ref, which a shallow checkout wouldn't have.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Installs the `lore` CLI. Replace with your deployment's install step
+      # (e.g. `npm install -g @lore/cli`) once the package is published —
+      # this template pins nothing, since the CLI ships alongside the
+      # product, not the template.
+      - run: npm install -g @lore/cli
+
+      - name: lore validate (changed-files fast path)
+        if: github.event_name == 'pull_request'
+        run: lore validate --changed origin/${{ github.base_ref }}
+
+      - name: lore validate (full repo)
+        if: github.event_name == 'push'
+        run: lore validate --full

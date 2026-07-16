@@ -1,0 +1,11 @@
+# Scope grants (CONTEXT.md "Grant", PRD.md §8.8 R35): make one scope's
+# canonical records readable to principals holding another scope. Scope-level
+# only — no per-record grants. Grants never include drafts.
+#
+# Example: let team:platform read everything under product:acme
+#
+# grants:
+#   - from: product:acme
+#     to: team:platform
+
+grants: []

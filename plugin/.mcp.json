@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "lore": {
+      "type": "http",
+      "url": "${LORE_MCP_URL:-https://lore.example.com/mcp}",
+      "headers": {
+        "Authorization": "Bearer ${LORE_MCP_TOKEN}"
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+# Lore Config: non-record configuration for this canonical repository
+# (CONTEXT.md "Lore Config"). Changed only via the same PR gate as records.
+
+claim: preferred_username # the STS claim used as the canonical corporate identity
+                           # (preferred_username | email) — used uniformly in
+                           # owners, PR trailers, and provenance.
+
+# Identity-map strictness: what happens when a PR approver's git-host handle
+# has no entry in identities.yml (PRD.md §8.4 R22).
+#   warn — log and continue (recommended while onboarding a new deployment)
+#   fail — block promotion until the approver is mapped
+strictness: warn

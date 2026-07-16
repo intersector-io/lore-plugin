@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "lore",
+  "description": "Search canonical org knowledge before you design or decide, author and validate new records, and track proposals through review.",
+  "version": "0.5.0",
+  "homepage": "https://github.com/intersector-io/lore-plugin#readme",
+  "repository": "https://github.com/intersector-io/lore-plugin",
+  "keywords": ["knowledge-base", "mcp", "adr", "governance"]
+}

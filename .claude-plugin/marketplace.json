@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "lore",
+  "owner": {
+    "name": "Intersector"
+  },
+  "description": "lore — canonical knowledge base for agentic teams.",
+  "plugins": [
+    {
+      "name": "lore",
+      "source": "./plugin"
+    }
+  ]
+}

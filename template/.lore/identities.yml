@@ -1,0 +1,8 @@
+# Identity map (CONTEXT.md "Identity Map"): git-host handle -> corporate
+# identity. Stitches PR approvals (git-host identities) to the STS identity
+# (the claim configured in config.yml) used in owners/trailers/provenance.
+#
+# renato-gh maps to the owner used across this template's example records
+# (org/type/*.md, org/decision/example-decision.md, products/acme/product/acme.md)
+# so the template repo self-certifies against config/owner-unmapped.
+renato-gh: renato@example.com
