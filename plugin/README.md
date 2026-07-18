@@ -1,10 +1,11 @@
 # lore plugin
 
-Installs the lore MCP server plus four skills that make an agent search
-canonical knowledge before deciding, author new records correctly the first
-time, shepherd proposals to promotion, and extract brownfield knowledge with
-the batch discipline the harvester uses — and two agents (`librarian`,
-`conflict-checker`) plus the session capture hooks.
+Installs the lore MCP server plus skills that make an agent search canonical
+knowledge before deciding, author new records correctly the first time,
+shepherd proposals to promotion, extract brownfield knowledge with the batch
+discipline the harvester uses, and answer questions about lore from its own
+docs — and two agents (`librarian`, `conflict-checker`) plus the session
+capture hooks.
 
 ## Install
 
@@ -46,6 +47,7 @@ manifest goes in there. Everything else stays at the plugin root:
 - `skills/harvesting` — brownfield extraction: route whole-repo seeds to
   `lore-harvest`, run curated few-document extraction through the
   dedup-then-batch loop.
+- `skills/guide` — answer questions about lore itself from its own docs.
 - `agents/` — `librarian` (capture → dedupe → batch-propose) and
   `conflict-checker` (read-only gate against canon).
 - `hooks/` — SessionEnd enqueues a capture; SessionStart renders what's pending.
@@ -55,7 +57,7 @@ manifest goes in there. Everything else stays at the plugin root:
 `version` in the manifest is Claude Code's cache key for updates: bump it when
 anything under `plugin/` changes, or installed users keep the cached copy.
 
-All four skills are intentionally thin: they teach tool sequencing, not catalog
+The skills are intentionally thin: they teach tool sequencing, not catalog
 content. The type catalog and the caller's proposable scopes come from `whoami`;
 schemas, templates, and checklists from `create_record` / `validate_record` — all
 fetched at runtime, so this plugin never needs a new release when the catalog
