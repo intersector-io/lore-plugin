@@ -1,0 +1,103 @@
+name: lore
+
+# Licensed, clone-free deployment (ADR-0014, docs/issues/0051). This compose
+# PULLS the API and indexer images from your private registry instead of
+# building them from source — a licensed customer never has the monorepo. It
+# mirrors the topology of the product repo's root docker-compose.yml (db + api
+# + the `indexer` profile + the two volumes); the observability profile is not
+# part of this bundle.
+#
+# The pull credential is the license (docs/deploy/licensing.md). Log in first:
+#   docker login "$LORE_IMAGE_REGISTRY" -u <customer> -p <token>
+# then set LORE_IMAGE_REGISTRY (and optionally LORE_IMAGE_TAG) in your shell or
+# a `.env` beside this file. See README.md.
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${LORE_DB_NAME:-lore}
+      POSTGRES_USER: ${LORE_DB_USER:-lore}
+      POSTGRES_PASSWORD: ${LORE_DB_PASSWORD:-lore}
+    ports:
+      - "${LORE_DB_PORT:-55432}:5432"
+    volumes:
+      - lore-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # @lore/api: the resource server + MCP endpoint. Pulled from your registry.
+  # LORE_IMAGE_REGISTRY is REQUIRED (the `:?` fails compose with a clear message
+  # when it's unset); LORE_IMAGE_TAG defaults to `latest`. Reads every config
+  # var documented in env/api.env.example; a boot-time config error exits
+  # non-zero before serving, so a misconfigured container fails its healthcheck
+  # rather than serving half-broken.
+  api:
+    image: ${LORE_IMAGE_REGISTRY:?set LORE_IMAGE_REGISTRY to your licensed registry host}/lore-api:${LORE_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file:
+      # Copy env/api.env.example to env/api.env, fill it in, and point
+      # LORE_API_ENV_FILE at it. Defaults to the example itself, which is enough
+      # to `docker compose config` validate but NOT enough to actually serve.
+      - ${LORE_API_ENV_FILE:-env/api.env.example}
+    environment:
+      DATABASE_URL: postgres://${LORE_DB_USER:-lore}:${LORE_DB_PASSWORD:-lore}@db:5432/${LORE_DB_NAME:-lore}
+      PORT: 3300
+      # Runtime git-config store: the git stack (provider, remote, token,
+      # webhook secret, service identity) lives here on a volume shared with the
+      # indexer, so the API boots on DB alone and an admin completes git setup
+      # from the portal. Secrets never touch Postgres.
+      LORE_RUNTIME_CONFIG: /config/runtime-config.json
+    ports:
+      - "${LORE_API_PORT:-3300}:3300"
+    volumes:
+      # The canonical repo checkout this instance serves/proposes against.
+      # Read-write: propose_record and webhook-driven fetches both write into
+      # it. For a self-serve install this starts EMPTY and the setup wizard
+      # clones your remote into it — `mkdir -p repo` before the first `up`.
+      - ${LORE_REPO_HOST_PATH:-./repo}:/repo
+      # A local remote the wizard can clone from when the "remote" is on the same
+      # host. Read-only; a normal install's remote is a real git URL and never
+      # touches /remote, so the default harmlessly points at the same dir.
+      - ${LORE_REMOTE_HOST_PATH:-./repo}:/remote:ro
+      # Runtime config store — shared with the indexer so both read one config.
+      - lore-config:/config
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # @lore/indexer: one-shot subcommands by default
+  # (`docker compose -f docker-compose.yml --profile indexer run --rm indexer
+  # rebuild --ref main`); switch to the long-lived poller with
+  # `LORE_INDEXER_MODE=poll` (see env/indexer.env.example). Behind the `indexer`
+  # profile so a plain `docker compose up` doesn't start a service most
+  # webhook-driven installs never run continuously.
+  indexer:
+    image: ${LORE_IMAGE_REGISTRY:?set LORE_IMAGE_REGISTRY to your licensed registry host}/lore-indexer:${LORE_IMAGE_TAG:-latest}
+    profiles: ["indexer"]
+    restart: unless-stopped
+    env_file:
+      - ${LORE_INDEXER_ENV_FILE:-env/indexer.env.example}
+    environment:
+      LORE_DATABASE_URL: postgres://${LORE_DB_USER:-lore}:${LORE_DB_PASSWORD:-lore}@db:5432/${LORE_DB_NAME:-lore}
+      # The /repo mount below, injected rather than typed: it is the default
+      # <path> for rebuild/incremental/poll, so the documented command is
+      # `run --rm indexer rebuild --ref main` with no container path in it.
+      LORE_INDEXER_REPO_PATH: /repo
+      # Same runtime config store as the api service: in poll mode the indexer
+      # resolves the git remote from here when LORE_REMOTE_URL is unset.
+      LORE_RUNTIME_CONFIG: /config/runtime-config.json
+    volumes:
+      - ${LORE_REPO_HOST_PATH:-./repo}:/repo
+      - lore-config:/config
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  lore-postgres-data:
+  lore-config:
