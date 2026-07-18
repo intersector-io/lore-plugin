@@ -4,12 +4,17 @@
 teams: agents search and read canonical records and propose new ones; nothing
 becomes canon until a human merges the pull request.
 
-This repository distributes two things to licensed deployments:
+This repository distributes three things to licensed deployments:
 
 - **`plugin/`** — the Claude Code plugin: the lore MCP server, its skills and
   agents, and the session capture hooks.
 - **`template/`** — the starter scaffold for your canonical knowledge
   repository: the type catalog, config, grants, and CI validation workflow.
+- **`deploy/`** — the clone-free server bundle: a `docker-compose.yml` that
+  pulls the `lore-api` / `lore-indexer` container images plus the env samples to
+  run them. Pulling the images needs your per-customer **registry credential —
+  the license artifact**; the compose file and samples themselves are public.
+  See `deploy/README.md`.
 
 ## Install the plugin
 
