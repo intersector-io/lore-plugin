@@ -8,9 +8,11 @@ name: lore
 # part of this bundle.
 #
 # The pull credential is the license (docs/deploy/licensing.md). Log in first:
-#   docker login "$LORE_IMAGE_REGISTRY" -u <customer> -p <token>
+#   docker login registry.gitlab.com -u <customer> -p <token>
 # then set LORE_IMAGE_REGISTRY (and optionally LORE_IMAGE_TAG) in your shell or
-# a `.env` beside this file. See README.md.
+# a `.env` beside this file. Note the login host and LORE_IMAGE_REGISTRY are
+# different strings: the latter is the image prefix this file appends
+# `/lore-api` and `/lore-indexer` to. See README.md.
 
 services:
   db:
@@ -37,7 +39,7 @@ services:
   # non-zero before serving, so a misconfigured container fails its healthcheck
   # rather than serving half-broken.
   api:
-    image: ${LORE_IMAGE_REGISTRY:?set LORE_IMAGE_REGISTRY to your licensed registry host}/lore-api:${LORE_IMAGE_TAG:-latest}
+    image: ${LORE_IMAGE_REGISTRY:?set LORE_IMAGE_REGISTRY to your licensed image prefix, e.g. registry.gitlab.com/intersector-io/lore}/lore-api:${LORE_IMAGE_TAG:-latest}
     restart: unless-stopped
     env_file:
       # Copy env/api.env.example to env/api.env, fill it in, and point
@@ -77,7 +79,7 @@ services:
   # profile so a plain `docker compose up` doesn't start a service most
   # webhook-driven installs never run continuously.
   indexer:
-    image: ${LORE_IMAGE_REGISTRY:?set LORE_IMAGE_REGISTRY to your licensed registry host}/lore-indexer:${LORE_IMAGE_TAG:-latest}
+    image: ${LORE_IMAGE_REGISTRY:?set LORE_IMAGE_REGISTRY to your licensed image prefix, e.g. registry.gitlab.com/intersector-io/lore}/lore-indexer:${LORE_IMAGE_TAG:-latest}
     profiles: ["indexer"]
     restart: unless-stopped
     env_file:

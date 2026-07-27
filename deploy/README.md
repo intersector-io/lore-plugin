@@ -19,15 +19,16 @@ public mirror — see "Start your canonical repository" below.
 ## 1. Log in to the registry
 
 ```sh
-docker login "$LORE_IMAGE_REGISTRY" -u <your-customer-username> -p <your-pull-token>
+docker login registry.gitlab.com -u <your-customer-username> -p <your-pull-token>
 ```
 
-`LORE_IMAGE_REGISTRY` is the registry host lore gave you (e.g.
-`registry.example.com`). Export it — the compose file reads it and fails loudly
-if it's unset:
+`docker login` takes the registry **host**. `LORE_IMAGE_REGISTRY` is the image
+**prefix** — a longer string, which the compose file appends `/lore-api` and
+`/lore-indexer` to. Export it; the compose file reads it and fails loudly if
+it's unset:
 
 ```sh
-export LORE_IMAGE_REGISTRY=registry.example.com
+export LORE_IMAGE_REGISTRY=registry.gitlab.com/intersector-io/lore
 export LORE_IMAGE_TAG=latest   # or a pinned version lore gave you
 ```
 
