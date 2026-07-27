@@ -3,15 +3,22 @@
 Installs the lore MCP server plus skills that make an agent search canonical
 knowledge before deciding, author new records correctly the first time,
 shepherd proposals to promotion, extract brownfield knowledge with the batch
-discipline the harvester uses, and answer questions about lore from its own
-docs — and two agents (`librarian`, `conflict-checker`) plus the session
-capture hooks.
+discipline the harvester uses, walk an admin through a new deployment's
+rollout, and answer questions about lore from its own docs — and two agents
+(`librarian`, `conflict-checker`) plus the session capture hooks.
 
 ## Install
 
 ```sh
 claude plugin marketplace add intersector-io/lore-plugin
 claude plugin install lore@lore
+```
+
+Codex CLI installs from the same mirror (ADR-0014 amendment):
+
+```sh
+codex plugin marketplace add intersector-io/lore-plugin
+codex plugin add lore@lore
 ```
 
 `intersector-io/lore-plugin` is a public mirror generated from this directory
@@ -38,8 +45,10 @@ The capture hooks keep their queue under `${LORE_HOME:-~/.lore}`.
 
 ## Layout
 
-Claude Code reads the manifest from `.claude-plugin/plugin.json` — **only** the
-manifest goes in there. Everything else stays at the plugin root:
+Claude Code reads the manifest from `.claude-plugin/plugin.json`, Codex CLI
+from `.codex-plugin/plugin.json` — **only** a manifest goes in either (the two
+versions must match; `codex-structure.test.ts` enforces it). Everything else
+stays at the plugin root:
 
 - `skills/retrieval` — search lore before designing or deciding.
 - `skills/authoring` — create, validate, and propose a new record.
@@ -48,11 +57,20 @@ manifest goes in there. Everything else stays at the plugin root:
   `lore-harvest`, run curated few-document extraction through the
   dedup-then-batch loop.
 - `skills/guide` — answer questions about lore itself from its own docs.
+- `skills/onboarding` — drive an admin through finishing a fresh deployment's
+  rollout.
 - `agents/` — `librarian` (capture → dedupe → batch-propose) and
   `conflict-checker` (read-only gate against canon).
 - `hooks/` — SessionEnd enqueues a capture; SessionStart renders what's pending.
 - `.mcp.json` — the MCP server. Its key (`lore`) is what the agents' tool refs
   namespace under (`mcp__lore__*`); the two must agree.
+- `codex/` — the Codex-only glue (docs/issues/0054): `config.toml` (the
+  `[mcp_servers.lore]` fragment), `hooks.json` (SessionStart + Stop — Codex
+  has no SessionEnd, so the enqueue hook dedupes by session id), and
+  `agents/*.toml`, **generated** from `agents/*.md` by
+  `node scripts/generate-codex-agents.mjs` — edit the markdown, regenerate,
+  never edit the TOML. Skills are shared, not copied: Codex reads the same
+  `skills/*/SKILL.md` files.
 
 `version` in the manifest is Claude Code's cache key for updates: bump it when
 anything under `plugin/` changes, or installed users keep the cached copy.

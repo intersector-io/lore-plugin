@@ -1,4 +1,4 @@
-# lore — Claude Code plugin
+# lore — agent plugin (Claude Code & Codex CLI)
 
 [lore](https://lore.intersector.io) is a canonical knowledge base for agentic
 teams: agents search and read canonical records and propose new ones; nothing
@@ -6,8 +6,8 @@ becomes canon until a human merges the pull request.
 
 This repository distributes three things to licensed deployments:
 
-- **`plugin/`** — the Claude Code plugin: the lore MCP server, its skills and
-  agents, and the session capture hooks.
+- **`plugin/`** — the agent plugin for Claude Code and Codex CLI: the lore
+  MCP server, its skills and agents, and the session capture hooks.
 - **`template/`** — the starter scaffold for your canonical knowledge
   repository: the type catalog, config, grants, and CI validation workflow.
 - **`deploy/`** — the clone-free server bundle: a `docker-compose.yml` that
@@ -18,9 +18,19 @@ This repository distributes three things to licensed deployments:
 
 ## Install the plugin
 
+Claude Code:
+
 ```sh
 claude plugin marketplace add intersector-io/lore-plugin
 claude plugin install lore@lore
+```
+
+Codex CLI (same mirror; the MCP fragment to merge into `~/.codex/config.toml`
+is `plugin/codex/config.toml`):
+
+```sh
+codex plugin marketplace add intersector-io/lore-plugin
+codex plugin add lore@lore
 ```
 
 Then point it at your deployment before starting a session:

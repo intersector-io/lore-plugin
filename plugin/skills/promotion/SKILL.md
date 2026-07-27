@@ -29,6 +29,36 @@ the proposal's review state.
    check you're passing the exact `ref` string `propose_record` returned,
    not a reconstructed guess.
 
+## Answering "please change X" (request changes)
+
+A reviewer who wants something different comments on the proposal instead of
+promoting it. Answer it with **`revise_proposal(ref, ulid, …)`** — the same
+structured patch `propose_revision` takes (`title`, `description`, `tags`,
+`body`, `links`), landing as one more commit on that proposal's existing
+draft, keeping the ref and the reviewer's discussion.
+
+**Never answer feedback by calling `propose_record`/`propose_revision`
+again.** That opens a *second* proposal against the same record and leaves
+the first one open — two competing candidates, and whichever is promoted last
+wins silently. If you already did it, say so and ask the reviewer to reject
+the stale one. (Re-sending the original call with its `idempotency_key` and
+the edit folded in is refused outright — `propose/idempotency-conflict` — so
+nothing is lost, but `revise_proposal` was the right call all along.)
+
+You need not be the proposal's author: the gate is the record's scope in your
+contribute set, the same grant `propose_record` needs. Say whose feedback you
+are acting on.
+
+An edit can't link to a record promoted to canon *after* the proposal was
+opened — the draft is validated as it stands, so the target fails
+`links/typed-integrity` ("does not exist as a record id in this repo"). Get
+this proposal promoted, then add the link with a follow-up `propose_revision`.
+
+The comment itself isn't readable through the MCP tools — `get_proposal`
+returns state, not discussion. Ask the human what the reviewer asked for
+rather than guessing, and re-state the change you're about to make before you
+make it.
+
 ## Shepherd checklist
 
 A proposal that sits open past its usefulness is worse than one that was
@@ -57,9 +87,11 @@ Two different operations change existing canon — pick by what changed:
 - **Only the text is wrong** (a typo, a stale sentence, sharper wording or
   tags) → **`propose_revision`**. Same record, same ULID, same path; pass the
   `ulid` plus only the fields you're changing (`title`, `description`,
-  `tags`, `body`). Identity can't be touched, a no-op patch is refused, and
-  the result is a normal PR to track like any other proposal. Never supersede
-  to fix wording — it forks history for no reason.
+  `tags`, `body`, and `links` — a wholesale replacement of the typed-link
+  arrays, for repairing a relationship that was missed). Identity can't be
+  touched, a no-op patch is refused, and the result is a normal PR to track
+  like any other proposal. Never supersede to fix wording — it forks history
+  for no reason.
 
 ## Supersession
 

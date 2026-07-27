@@ -7,6 +7,7 @@ claim: preferred_username # the STS claim used as the canonical corporate identi
 
 # Identity-map strictness: what happens when a PR approver's git-host handle
 # has no entry in identities.yml (PRD.md §8.4 R22).
-#   warn — log and continue (recommended while onboarding a new deployment)
-#   fail — block promotion until the approver is mapped
+#   warn   — log and continue (recommended while onboarding a new deployment)
+#   strict — `config/owner-unmapped` becomes an error, so an unmapped owner
+#            blocks validation (and therefore the propose that would write it)
 strictness: warn

@@ -109,7 +109,9 @@ sequence all live there. Start with `/docs/how-to/self-host-lore/`.
 
 ## Upgrade
 
-Pull the new images and re-run migrate + rebuild — the only upgrade path:
+Pull the new images and re-run migrate + rebuild — the only upgrade path.
+`docker compose pull` moves you forward only while `LORE_IMAGE_TAG` is the
+moving `latest` tag; if you pinned a version, set the new version first.
 
 ```sh
 docker compose pull

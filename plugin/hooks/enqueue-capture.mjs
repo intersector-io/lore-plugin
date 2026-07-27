@@ -11,14 +11,18 @@
  * Reads the SessionEnd hook's stdin JSON (session_id, transcript_path,
  * cwd — see Claude Code hooks reference) and writes
  * `${LORE_HOME:-~/.lore}/capture-queue.jsonl`.
+ *
+ * Dedupes by session id (docs/issues/0054): Codex has no SessionEnd event,
+ * so its wiring fires this on Stop — once per turn, not once per session.
+ * A session already queued is never queued again — but a per-turn Stop for
+ * a still-queued entry refreshes its `ts`, so the entry's age means "time
+ * since last activity" and the drain quiet period (lib/queue.mjs
+ * DRAIN_QUIET_MS) can keep a live Codex session from being drained
+ * mid-flight. Entries with no session id are never deduped (an unknown
+ * stdin shape must still record sessions).
  */
 import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import path from 'node:path';
-
-function loreHome() {
-  return process.env.LORE_HOME || path.join(homedir(), '.lore');
-}
+import { loreHome, queuePathIn, readQueue, writeQueue } from './lib/queue.mjs';
 
 function readStdinJson() {
   if (process.stdin.isTTY) return {};
@@ -35,13 +39,32 @@ function main() {
   const input = readStdinJson();
   const home = loreHome();
   mkdirSync(home, { recursive: true });
+  const queuePath = queuePathIn(home);
+  const sessionRef = input.session_id ?? null;
+  if (sessionRef !== null) {
+    const entries = readQueue(queuePath);
+    const existing = entries.find((e) => e.sessionRef === sessionRef);
+    if (existing) {
+      // Codex per-turn Stop: touch the still-queued entry so its age
+      // reflects last activity, not the first turn. Never resurrect an
+      // entry the drain already moved past `queued`.
+      if (existing.status === 'queued') {
+        existing.ts = new Date().toISOString();
+        writeQueue(queuePath, entries);
+      }
+      return;
+    }
+  }
   const entry = {
     ts: new Date().toISOString(),
-    sessionRef: input.session_id ?? null,
+    sessionRef,
     transcriptPath: input.transcript_path ?? null,
     cwd: input.cwd ?? null,
+    event: input.hook_event_name ?? null,
+    status: 'queued',
+    attempts: 0,
   };
-  appendFileSync(path.join(home, 'capture-queue.jsonl'), JSON.stringify(entry) + '\n', 'utf8');
+  appendFileSync(queuePath, JSON.stringify(entry) + '\n', 'utf8');
 }
 
 try {

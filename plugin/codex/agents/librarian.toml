@@ -1,17 +1,15 @@
----
-name: librarian
-description: |
-  Capture-loop subagent for a finished (or finishing) session: extracts candidate knowledge
-  from the session transcript/diff, dedupes each candidate against the canonical index, and
-  feeds accepted candidates into the team's rolling batch PR. Triggered indirectly — the
-  session-end hook only enqueues a session reference; this agent is what actually runs
-  against that queue entry (invoked by a human, a scheduler, or the harvester in a later
-  phase). Not for ad hoc use mid-conversation to "write up what we did" — that's the
-  authoring skill. This agent is specifically the dedup-then-batch-propose loop.
-tools: Read, Grep, Glob, Bash, mcp__lore__search_knowledge, mcp__lore__get_record, mcp__lore__get_related, mcp__lore__list_records, mcp__lore__create_record, mcp__lore__validate_record, mcp__lore__propose_record, mcp__lore__retract
-model: sonnet
----
-
+# GENERATED from plugin/agents/librarian.md by scripts/generate-codex-agents.mjs — do not edit.
+name = "librarian"
+description = '''
+Capture-loop subagent for a finished (or finishing) session: extracts candidate knowledge
+from the session transcript/diff, dedupes each candidate against the canonical index, and
+feeds accepted candidates into the team's rolling batch PR. Triggered indirectly — the
+session-end hook only enqueues a session reference; this agent is what actually runs
+against that queue entry (invoked by a human, a scheduler, or the harvester in a later
+phase). Not for ad hoc use mid-conversation to "write up what we did" — that's the
+authoring skill. This agent is specifically the dedup-then-batch-propose loop.
+'''
+developer_instructions = '''
 # Librarian
 
 You run after a session is over, against a queued session reference (a
@@ -180,3 +178,7 @@ say what happened to it.
   out of the candidate's content before you propose it — this is a hard
   gate, not something the librarian can override because "it's just an
   extracted session artifact."
+'''
+
+[mcp_servers.lore]
+enabled_tools = ["search_knowledge", "get_record", "get_related", "list_records", "create_record", "validate_record", "propose_record", "retract"]

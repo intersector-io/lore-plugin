@@ -1,0 +1,12 @@
+# lore MCP server for Codex CLI (docs/issues/0054). Merge this fragment into
+# ~/.codex/config.toml (or a trusted project's .codex/config.toml), replacing
+# the url with your deployment's LORE_MCP_URL value. The bearer token is read
+# from the LORE_MCP_TOKEN environment variable at session start — never write
+# the token itself into config.
+#
+# Equivalent one-liner:
+#   codex mcp add lore --url "$LORE_MCP_URL" --bearer-token-env-var LORE_MCP_TOKEN
+
+[mcp_servers.lore]
+url = "https://lore.example.com/mcp"
+bearer_token_env_var = "LORE_MCP_TOKEN"

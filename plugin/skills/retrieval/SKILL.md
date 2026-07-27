@@ -32,11 +32,11 @@ the point.
 2. Read the `description` and snippet of each hit before deciding whether to
    fetch it in full. Don't fetch everything indiscriminately; fetch what's
    actually relevant to the decision in front of you.
-3. For a hit that matters, call `get_record` with its `ulid` to read the full
-   body before you rely on it. A description alone is not enough to cite
-   something as a constraint — read the record.
+3. For a hit that matters, call `get_record` with the hit's `ulid` value
+   passed as `id` to read the full body before you rely on it. A description
+   alone is not enough to cite something as a constraint — read the record.
 4. If a record looks relevant but incomplete on its own, call `get_related`
-   on its `ulid` to walk `constrains` / `implements` / `supersedes` /
+   with that same value as `id` to walk `constrains` / `implements` / `supersedes` /
    `relates` links. A constraint is often layered: a policy that constrains
    an ADR that constrains your design. Don't stop at the first hit if the
    chain matters.

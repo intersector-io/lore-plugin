@@ -1,7 +1,7 @@
 ---
 type: type
 title: "C4 Component"
-description: "A grouping of related functionality inside a container (a module or service class) — C4 level 4, structural."
+description: "A grouping of related functionality inside a container (a module or service class) — C4 level 3, structural."
 tags: [product]
 timestamp: 2026-07-15T12:00:00Z
 x-lore:

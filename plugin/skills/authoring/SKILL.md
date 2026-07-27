@@ -25,12 +25,11 @@ type only exist as of the current catalog, fetched live.
      Pick the slug from here — a type that exists but has no records yet is
      invisible to `search_knowledge` and `list_records`, so it cannot be
      inferred from what you've read.
-   - `scopes` is what you **hold** — the *only* scopes `propose_record`
-     accepts.
-   - `readableScopes` is what you can **read** (your scopes plus any granted
-     to you). **Never propose into one of these that isn't also in `scopes`**
-     — a grant confers read, never write, so that's a guaranteed 403 after
-     you've done all the writing.
+   - `contribute` is the *only* set of scopes `propose_record` accepts.
+   - `readableScopes` is what you can **read** (your own scopes plus any granted
+     to you). **Never propose into one of these that isn't also in
+     `contribute`** — a grant confers read, never write, so that's a
+     guaranteed 403 after you've done all the writing.
    - `canPropose: false` means stop: you can draft the record for the user,
      but you cannot open the PR yourself. Say so rather than failing at the
      last step.
@@ -45,8 +44,11 @@ type only exist as of the current catalog, fetched live.
 3. **Fill the template.** Write real content into every placeholder. Leave
    nothing generic — a reviewer checklist item you didn't actually satisfy
    is worse than an honest gap, because it looks satisfied at a glance.
+   Leave the record's id blank exactly as the template ships it: the ULID is
+   assigned when you propose, `validate_record` treats an absent id as the
+   expected shape, and `propose_record` overwrites anything you put there.
 4. **`validate_record(type, content, scope)`** — validate before you propose,
-   every time, passing the `scope` you chose from `whoami`'s `scopes`: without
+   every time, passing the `scope` you chose from `whoami`'s `contribute`: without
    it, placement and ULID-uniqueness checks are skipped and you'll get a
    warning explaining why, not a clean bill of health.
 5. **Read the diagnostics and fix, don't guess.** Each diagnostic carries
@@ -94,3 +96,27 @@ A quick `search_knowledge` for the topic (retrieval skill) before you start
 authoring is worth the thirty seconds — proposing a near-duplicate of an
 existing active record wastes a reviewer's time when what you actually
 wanted was to update or supersede it (promotion skill covers supersession).
+
+Also check the content is canon-shaped: knowledge that **outlives the
+current change** and **reaches beyond the repo you're sitting in** —
+decisions and their reasons, standards, policies, vocabulary, contracts.
+Execution state (task lists, sprint plans, milestones, epics, open
+questions) usually expires when the work ships, and a document that only
+restates the checkout (folder structure, how CI runs) drifts the moment
+it's copied into canon. Two hard rules about this check:
+
+- **The live catalog outranks it.** This is advice to raise with the
+  user, never a refusal. If the content affirmatively passes the
+  classification test `create_record` returns for a type in `whoami`'s
+  catalog, it is authorable here — some teams deliberately keep
+  change-intake records (work breakdowns, in-flight designs) in canon and
+  retire them when the change archives.
+- **The user outranks it too.** On "I know, propose it anyway": raise the
+  concern once, then propose under the type the user named. Never re-type
+  execution state as something durable (a task list dressed as a spec) to
+  satisfy the user and this check at once.
+
+When asked to "save our docs/planning to lore", propose the durable core
+(a whole docs tree is the harvesting skill's job), and name the documents
+you're leaving local and why — leaving execution state local is a correct
+outcome, not a missed capture.
