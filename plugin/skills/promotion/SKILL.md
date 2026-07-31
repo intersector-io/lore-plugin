@@ -14,6 +14,23 @@ PR. This skill covers what happens after `propose_record` returns: tracking
 the proposal, shepherding it to a decision, and superseding correctly when
 new knowledge replaces old.
 
+## Handing it to the human who decides
+
+**Every propose call also returns `reviewUrl` — give it to your human.** It
+opens the proposal on the portal's review page, where promotion actually
+happens. Don't make them go find it: a proposal nobody is pointed at is a
+proposal nobody decides.
+
+Say who needs to act and paste the link, e.g. *"Proposed — someone with
+approve rights on `org` can promote it here: `<reviewUrl>`"*. Prefer it over
+`pr.url`: on a deployment with no external git host, `pr.url` is an internal
+`local://` identifier, not a page anyone can open.
+
+If the person you're talking to is themselves a reviewer, say so plainly —
+approving your own proposal is permitted (one approval promotes; the gate is
+who holds the role, and the promotion records that the approver also authored
+it). Hand them the same link.
+
 ## Tracking an open proposal
 
 `propose_record` returns a `pr` object with a `ref` (e.g.
@@ -65,6 +82,9 @@ A proposal that sits open past its usefulness is worse than one that was
 never made — treat "propose and forget" as a failure mode, not a stopping
 point.
 
+- [ ] Hand the human `reviewUrl` at the moment you propose — not later, and
+      not only the ref. This is the single most common reason a proposal
+      stalls: nobody was told where to go.
 - [ ] Confirm the proposal is actually open (`get_proposal`) before nudging
       anyone — don't remind a reviewer about something already merged.
 - [ ] If it's been open longer than feels normal for this team's review
