@@ -11,6 +11,15 @@ on:
   push:
     branches: [main]
 
+env:
+  # The public plugin mirror ships the `lore` CLI prebuilt, beside template/
+  # and deploy/ (ADR-0014). It is deliberately NOT an npm package: `@lore/cli`
+  # on npm belongs to an unrelated project and ships its own `lore` binary, so
+  # installing that would run a stranger's tool and fail here (docs/issues/0105).
+  # Pin a tag below if you would rather not track the mirror's default branch.
+  LORE_MIRROR: https://github.com/intersector-io/lore-plugin.git
+  LORE_MIRROR_REF: main
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -25,16 +34,20 @@ jobs:
         with:
           node-version: 22
 
-      # Installs the `lore` CLI. Replace with your deployment's install step
-      # (e.g. `npm install -g @lore/cli`) once the package is published —
-      # this template pins nothing, since the CLI ships alongside the
-      # product, not the template.
-      - run: npm install -g @lore/cli
+      # Installs the `lore` CLI from the mirror: a prebuilt bundle plus
+      # @lore/core as a local `file:` dependency, so the only thing this pulls
+      # from a registry is `yaml`. Same validation engine the API runs — no
+      # database, no API, no lore deployment required.
+      - name: Install the lore CLI
+        run: |
+          git clone --depth 1 --branch "$LORE_MIRROR_REF" "$LORE_MIRROR" "$RUNNER_TEMP/lore-plugin"
+          npm install --omit=dev --no-audit --no-fund --prefix "$RUNNER_TEMP/lore-plugin/cli"
+          echo "LORE_CLI=$RUNNER_TEMP/lore-plugin/cli/bin/lore.js" >> "$GITHUB_ENV"
 
       - name: lore validate (changed-files fast path)
         if: github.event_name == 'pull_request'
-        run: lore validate --changed origin/${{ github.base_ref }}
+        run: node "$LORE_CLI" validate --changed origin/${{ github.base_ref }}
 
       - name: lore validate (full repo)
         if: github.event_name == 'push'
-        run: lore validate --full
+        run: node "$LORE_CLI" validate --full

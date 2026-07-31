@@ -4,7 +4,7 @@
 teams: agents search and read canonical records and propose new ones; nothing
 becomes canon until a human merges the pull request.
 
-This repository distributes three things to licensed deployments:
+This repository distributes four things to licensed deployments:
 
 - **`plugin/`** — the agent plugin for Claude Code and Codex CLI: the lore
   MCP server, its skills and agents, and the session capture hooks.
@@ -15,6 +15,13 @@ This repository distributes three things to licensed deployments:
   run them. Pulling the images needs your per-customer **registry credential —
   the license artifact**; the compose file and samples themselves are public.
   See `deploy/README.md`.
+- **`cli/`** — the `lore` CLI, prebuilt: the validation engine your canonical
+  repo's CI runs, with `@lore/core` bundled as a local dependency. Install it
+  with `npm install --omit=dev` inside `cli/`, then call
+  `node cli/bin/lore.js validate <path>`. It needs no database, no API and no
+  lore deployment. **There is no `lore` CLI on npm** — `@lore/cli` there is an
+  unrelated project that ships its own `lore` binary, so installing it would
+  put a different tool on your PATH.
 
 ## Install the plugin
 

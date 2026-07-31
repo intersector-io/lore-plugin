@@ -1,7 +1,7 @@
 {
   "name": "lore",
   "description": "Search canonical org knowledge before you design or decide, author and validate new records, track proposals through review, harvest existing repos, walk an admin through a new deployment's rollout, and get guided answers about lore itself.",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "homepage": "https://github.com/intersector-io/lore-plugin#readme",
   "repository": "https://github.com/intersector-io/lore-plugin"
 }
