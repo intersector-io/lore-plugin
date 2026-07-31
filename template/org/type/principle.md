@@ -3,7 +3,7 @@ type: type
 title: Principle
 description: "A durable premise that biases decisions, without itself being a compliance rule."
 tags: [org]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 373528M55VTS4HTDYMNKGY6WV7
   status: active
@@ -33,7 +33,6 @@ type: principle
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

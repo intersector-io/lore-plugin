@@ -3,7 +3,7 @@ type: type
 title: Standard
 description: "A coding or technology standard with an enforcement level."
 tags: [architecture]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 7YECDF1YRX7SKTNB5HJD84D86P
   status: active
@@ -41,7 +41,6 @@ type: standard
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

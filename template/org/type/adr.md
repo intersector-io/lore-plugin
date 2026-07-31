@@ -3,7 +3,7 @@ type: type
 title: "ADR (Architecture Decision Record)"
 description: "A significant, durable architectural decision: context, decision, and consequences."
 tags: [architecture]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 2XZSW8YDASGQEJNR3DH1HB9C86
   status: active
@@ -36,7 +36,6 @@ type: adr
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

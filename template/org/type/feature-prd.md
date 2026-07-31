@@ -3,7 +3,7 @@ type: type
 title: "Feature / PRD"
 description: "What was built and why, for a single feature."
 tags: [product]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 05T4M3WRK5TQTG109GK6VBXYZX
   status: active
@@ -33,7 +33,6 @@ type: feature-prd
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

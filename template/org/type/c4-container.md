@@ -3,7 +3,7 @@ type: type
 title: "C4 Container"
 description: "A separately deployable or runnable unit inside a system (an app, service, or datastore) — C4 level 2."
 tags: [product]
-timestamp: 2026-07-15T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-15T12:00:00Z }
 x-lore:
   id: 01PBGVDCBJP62DCYJWDP0CJFSW
   status: active
@@ -47,7 +47,6 @@ type: c4-container
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

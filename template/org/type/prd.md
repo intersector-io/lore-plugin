@@ -3,7 +3,7 @@ type: type
 title: "PRD (Product Requirements Document)"
 description: "Product requirements — the intent and success criteria for a product change, stated before any solution shape, kept active until superseded."
 tags: [product]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 3QAZ7K2M4N6P8R1S3T5V7W9X0A
   status: active
@@ -35,7 +35,6 @@ type: prd
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

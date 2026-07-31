@@ -3,7 +3,7 @@ type: type
 title: Tasks
 description: "An ordered work breakdown for one change, retired in the PR that archives the change."
 tags: [change]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 3TD3E5F7G9H1J2K4M6N8P0Q2R4
   status: active
@@ -33,7 +33,6 @@ type: tasks
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

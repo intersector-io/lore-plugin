@@ -3,7 +3,7 @@ type: type
 title: Product
 description: "Anchor record for a product: ownership and links to its capabilities, processes, and features."
 tags: [product]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 4P3X06CG79K87CQ421KF5F9XNW
   status: active
@@ -33,7 +33,6 @@ type: product
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

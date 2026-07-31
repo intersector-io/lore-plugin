@@ -3,7 +3,7 @@ type: type
 title: "External Policy / Regulation"
 description: "A regulation or external authority requirement, separating citation from interpretation."
 tags: [org]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 6FZACHRE4SWV89EFPNHZRRJK9M
   status: active
@@ -52,7 +52,6 @@ type: external-policy
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

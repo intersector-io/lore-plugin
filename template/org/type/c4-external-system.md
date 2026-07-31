@@ -3,7 +3,7 @@ type: type
 title: "C4 External System"
 description: "A software system outside your ownership boundary that a system depends on — a C4 model external actor."
 tags: [product]
-timestamp: 2026-07-15T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-15T12:00:00Z }
 x-lore:
   id: 01N7Y0NYM8T3M1091JDDGXXQNF
   status: active
@@ -38,7 +38,6 @@ type: c4-external-system
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

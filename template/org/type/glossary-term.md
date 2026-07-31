@@ -3,7 +3,7 @@ type: type
 title: "Glossary Term"
 description: "A definition in the team's ubiquitous language, with context and related terms."
 tags: [org]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 68ZDFQWPSK0WCGCFYHBGD686EE
   status: active
@@ -39,7 +39,6 @@ type: glossary-term
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

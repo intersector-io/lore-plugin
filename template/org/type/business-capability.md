@@ -3,7 +3,7 @@ type: type
 title: "Business Capability"
 description: "What the business can do, independent of how it is currently implemented."
 tags: [product]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 2XGFVTMQ9Y4WA4DR59S1KARY0N
   status: active
@@ -33,7 +33,6 @@ type: business-capability
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

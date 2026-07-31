@@ -3,7 +3,7 @@ type: type
 title: "Internal Policy"
 description: "A company-set rule binding on internal teams, with an enforcement level and review cycle."
 tags: [org]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 444G07RHZ5XHPH3A9DEA8WHR6G
   status: active
@@ -48,7 +48,6 @@ type: internal-policy
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

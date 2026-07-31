@@ -3,7 +3,7 @@ type: type
 title: Type
 description: "Defines a record type: schema, template, worked example, checklist, and classification test."
 tags: [org]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 18047AR9KHHQM6BXA523A8DXF8
   status: active
@@ -33,7 +33,6 @@ type: type
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

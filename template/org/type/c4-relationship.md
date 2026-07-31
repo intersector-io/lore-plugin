@@ -3,7 +3,7 @@ type: type
 title: "C4 Relationship"
 description: "A directed, labelled interaction from one C4 element to another (source uses/calls/notifies target)."
 tags: [product]
-timestamp: 2026-07-15T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-15T12:00:00Z }
 x-lore:
   id: 0136HVX77D1FK5WVJSTX6VRTM8
   status: active
@@ -52,7 +52,6 @@ type: c4-relationship
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

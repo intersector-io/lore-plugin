@@ -31,7 +31,7 @@ Merge to `main` *is* promotion — there is no separate status-flip step.
 ## Record format
 
 Every record is one Markdown file with YAML frontmatter: the OKF-standard
-layer (`type`, `title`, `description`, `tags`, `timestamp`) at the top level,
+layer (`type`, `title`, `description`, `tags`, `generated`, optional `stale_after`) at the top level,
 plus Lore's own fields under `x-lore` (`id`, `status`, `owners`, `links`,
 `provenance`). Type-specific extra fields, if the type defines any, live
 under `x-type`. See `CONTEXT.md` in the product repo for full vocabulary.

@@ -3,7 +3,7 @@ type: type
 title: "Company Profile"
 description: "The one org-scope record describing the company itself: who it serves, how it makes money, what makes it different."
 tags: [org]
-timestamp: 2026-07-21T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-21T12:00:00Z }
 x-lore:
   id: 01KY22AWK77BKG1AZZ4S6Z0WBE
   status: active
@@ -36,7 +36,6 @@ type: company-profile
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

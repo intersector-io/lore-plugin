@@ -34,7 +34,7 @@ the proposal's review state.
 A reviewer who wants something different comments on the proposal instead of
 promoting it. Answer it with **`revise_proposal(ref, ulid, …)`** — the same
 structured patch `propose_revision` takes (`title`, `description`, `tags`,
-`body`, `links`), landing as one more commit on that proposal's existing
+`body`, `links`, `stale_after`), landing as one more commit on that proposal's existing
 draft, keeping the ref and the reviewer's discussion.
 
 **Never answer feedback by calling `propose_record`/`propose_revision`
@@ -87,8 +87,10 @@ Two different operations change existing canon — pick by what changed:
 - **Only the text is wrong** (a typo, a stale sentence, sharper wording or
   tags) → **`propose_revision`**. Same record, same ULID, same path; pass the
   `ulid` plus only the fields you're changing (`title`, `description`,
-  `tags`, `body`, and `links` — a wholesale replacement of the typed-link
-  arrays, for repairing a relationship that was missed). Identity can't be
+  `tags`, `body`, `stale_after` — the record's declared OKF expiry date,
+  `YYYY-MM-DD`; an empty string removes it — and `links` — a wholesale
+  replacement of the typed-link arrays, for repairing a relationship that
+  was missed). Identity can't be
   touched, a no-op patch is refused, and the result is a normal PR to track
   like any other proposal. Never supersede to fix wording — it forks history
   for no reason.

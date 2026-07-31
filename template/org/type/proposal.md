@@ -3,7 +3,7 @@ type: type
 title: Proposal
 description: "An OpenSpec-style change proposal — why one bounded change should happen and what changes, retired in the PR that archives the change."
 tags: [change]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 3RB1C2D3E4F5G6H7J8K9M0N1P2
   status: active
@@ -35,7 +35,6 @@ type: proposal
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

@@ -3,7 +3,7 @@ type: type
 title: "Integration Contract"
 description: "A cross-product touchpoint: the unit of cross-product retrieval."
 tags: [product]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 6KYJH7555VM1RBYN9PEGHBQ8H2
   status: active
@@ -34,7 +34,6 @@ type: integration-contract
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

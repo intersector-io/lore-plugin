@@ -3,7 +3,7 @@ type: type
 title: Learning
 description: "Something the team learned, worth remembering for next time."
 tags: [team]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 4E3DX930YSCMBC54SJ6NCGEQC5
   status: active
@@ -33,7 +33,6 @@ type: learning
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

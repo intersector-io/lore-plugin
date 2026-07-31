@@ -3,7 +3,7 @@ type: type
 title: Premise
 description: "A situational assumption a decision was built on."
 tags: [team]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 0HSJE2WARKNFHB32AW4MQ48G9D
   status: active
@@ -33,7 +33,6 @@ type: premise
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

@@ -3,7 +3,7 @@ type: type
 title: RFC
 description: "A proposal in flight that may graduate into an ADR."
 tags: [architecture]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 4865EMQ0YQ07GGZHE83RAZZDPF
   status: active
@@ -34,7 +34,6 @@ type: rfc
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

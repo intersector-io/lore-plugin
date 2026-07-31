@@ -3,7 +3,7 @@ type: type
 title: "C4 System"
 description: "A software system you own — the highest-level box in a C4 model, containing one or more containers."
 tags: [product]
-timestamp: 2026-07-15T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-15T12:00:00Z }
 x-lore:
   id: 019PMAACMXDT6Q0XZCRPFC0P31
   status: active
@@ -38,7 +38,6 @@ type: c4-system
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

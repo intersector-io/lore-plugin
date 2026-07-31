@@ -3,7 +3,7 @@ type: type
 title: "C4 Person"
 description: "A human actor (role or persona) that uses a system — a C4 model actor."
 tags: [product]
-timestamp: 2026-07-15T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-15T12:00:00Z }
 x-lore:
   id: 019F4BHYXKR9PM0A0XA2PPBJ8T
   status: active
@@ -39,7 +39,6 @@ type: c4-person
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

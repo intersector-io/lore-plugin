@@ -3,7 +3,7 @@ type: type
 title: "Domain Entity"
 description: "The shape, identity, and invariants of a business object the system persists or exchanges."
 tags: [product]
-timestamp: 2026-07-24T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-24T12:00:00Z }
 x-lore:
   id: 7DMNENT1TYA0RQK3W5H8XZC4VP
   status: active
@@ -47,7 +47,6 @@ type: domain-entity
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

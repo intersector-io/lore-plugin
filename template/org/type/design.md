@@ -3,7 +3,7 @@ type: type
 title: Design
 description: "Technical decisions for one in-flight change, retired in the PR that archives the change."
 tags: [change]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 3SC2D4E6F8G0H1J3K5M7N9P1Q3
   status: active
@@ -34,7 +34,6 @@ type: design
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active

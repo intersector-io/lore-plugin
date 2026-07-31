@@ -3,7 +3,7 @@ type: type
 title: Spec
 description: "A durable behavioural contract that outlives the change which introduced it, kept active until superseded."
 tags: [behaviour]
-timestamp: 2026-07-11T12:00:00Z
+generated: { by: "human:renato@example.com", at: 2026-07-11T12:00:00Z }
 x-lore:
   id: 3VE4F6G8H0J2K4M6N8P0Q2R4S6
   status: active
@@ -34,7 +34,6 @@ type: spec
 title:
 description:
 tags: []
-timestamp:
 x-lore:
   id:
   status: active
