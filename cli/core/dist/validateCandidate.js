@@ -1,7 +1,7 @@
-import { discoverRecords } from './discoverRecords.js';
 import { parseFrontmatter } from './frontmatter.js';
 import { readLoreConfigFiles } from './loreConfigFiles.js';
 import { loadRepoContexts, runConfigRules, runRecordRules, runRepoRules } from './pipeline.js';
+import { filesystemRecordSource } from './recordSource.js';
 import { isNonEmptyString, readField } from './rules/fieldHelpers.js';
 import { pathUnique } from './rules/pathUnique.js';
 import { placement } from './rules/placement.js';
@@ -100,6 +100,7 @@ function withDeclaredType(value, type) {
  * the candidate's fault.
  */
 export async function validateCandidate(repoRoot, type, content, options = {}) {
+    const source = options.source ?? filesystemRecordSource(repoRoot);
     const raw = content;
     const parsed = parseFrontmatter(raw);
     const submittedType = readField(parsed.value, ['type']);
@@ -137,8 +138,8 @@ export async function validateCandidate(repoRoot, type, content, options = {}) {
     // overlaid on it — that's the whole point: type resolution, link integrity
     // and ULID uniqueness are questions you can only ask of a record *in* a repo.
     // Then keep only what the candidate itself is answerable for.
-    const repoFiles = await discoverRecords(repoRoot);
-    const repoContexts = await loadRepoContexts(repoRoot, repoFiles);
+    const repoFiles = await source.listFiles();
+    const repoContexts = await loadRepoContexts(source, repoFiles);
     repoContexts.push({ file: candidateFile, frontmatter: frontmatter.value, raw });
     const repoDiagnostics = runRepoRules(repoContexts, [...repoFiles, candidateFile], phase);
     diagnostics.push(...repoDiagnostics.filter((d) => d.file === candidateFile));
@@ -146,7 +147,7 @@ export async function validateCandidate(repoRoot, type, content, options = {}) {
     // `config/owner-unmapped` is what an author needs to hear about their own
     // candidate, while the repo's pre-existing `.lore/` diagnostics are never
     // the candidate's fault (docs/issues/0083).
-    const configDiagnostics = runConfigRules(await readLoreConfigFiles(repoRoot), repoContexts, phase);
+    const configDiagnostics = runConfigRules(await readLoreConfigFiles(source), repoContexts, phase);
     diagnostics.push(...configDiagnostics.filter((d) => d.file === candidateFile));
     return { diagnostics, summary: summarize(diagnostics, 1) };
 }

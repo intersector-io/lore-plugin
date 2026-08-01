@@ -21,7 +21,7 @@ export function formatHuman(result) {
     lines.push(`Checked ${files} record${files === 1 ? '' : 's'}: ${errors} error${errors === 1 ? '' : 's'}, ${warnings} warning${warnings === 1 ? '' : 's'}.`);
     return lines.join('\n');
 }
-function formatDiagnosticLine(diagnostic) {
+export function formatDiagnosticLine(diagnostic) {
     const location = diagnostic.pointer ? `${diagnostic.file}${diagnostic.pointer}` : diagnostic.file;
     return `${diagnostic.severity.toUpperCase()} [${diagnostic.rule}] ${location}: ${diagnostic.message}`;
 }

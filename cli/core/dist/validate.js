@@ -2,6 +2,7 @@ import { discoverRecords } from './discoverRecords.js';
 import { parseFrontmatter } from './frontmatter.js';
 import { hasAnyLoreConfig, readLoreConfigFiles } from './loreConfigFiles.js';
 import { readRecordContext, runConfigRules, runRecordRules, runRepoRules, toRepoContext } from './pipeline.js';
+import { filesystemRecordSource } from './recordSource.js';
 import { readLinkTargets, readRecordId } from './rules/linkHelpers.js';
 import { REPO_RULES, CONFIG_RULES } from './rules/index.js';
 /** Paths whose diff always escalates changed-mode validation to full (Main Invariant: Type Records and Lore Config). */
@@ -31,7 +32,7 @@ export async function validateRepo(rootDir) {
 export async function isKnowledgeRepoRoot(rootDir) {
     // `.lore/` first: three stats, and every repo scaffolded from the template
     // has it — so the common case never pays for the second tree walk.
-    if (hasAnyLoreConfig(await readLoreConfigFiles(rootDir)))
+    if (hasAnyLoreConfig(await readLoreConfigFiles(filesystemRecordSource(rootDir))))
         return true;
     return (await discoverRecords(rootDir)).length > 0;
 }
@@ -42,7 +43,7 @@ export async function isKnowledgeRepoRoot(rootDir) {
  * down to changed-file diagnostics.
  */
 export async function validateFiles(rootDir, files) {
-    const { diagnostics } = await runValidation(rootDir, files);
+    const { diagnostics } = await runValidation(filesystemRecordSource(rootDir), files);
     return { diagnostics, summary: summarize(diagnostics, files.length) };
 }
 /**
@@ -51,11 +52,11 @@ export async function validateFiles(rootDir, files) {
  * `validateChanged` needs to resolve changed files' record ids without a
  * second file-read pass.
  */
-async function runValidation(rootDir, files) {
+async function runValidation(source, files) {
     const diagnostics = [];
     const repoContexts = [];
     for (const file of files) {
-        const { diagnostics: fileDiagnostics, repoContext } = await validateOneFile(rootDir, file);
+        const { diagnostics: fileDiagnostics, repoContext } = await validateOneFile(source, file);
         diagnostics.push(...fileDiagnostics);
         if (repoContext)
             repoContexts.push(repoContext);
@@ -65,7 +66,7 @@ async function runValidation(rootDir, files) {
     diagnostics.push(...runRepoRules(repoContexts, files));
     // Lore Config sanity (issue 0005) needs the raw `.lore/` files, which live
     // outside the record file set discoverRecords/validateFiles operates on.
-    diagnostics.push(...runConfigRules(await readLoreConfigFiles(rootDir), repoContexts));
+    diagnostics.push(...runConfigRules(await readLoreConfigFiles(source), repoContexts));
     return { diagnostics, repoContexts };
 }
 function escalationReasonFor(changed) {
@@ -110,12 +111,13 @@ export async function validateChanged(rootDir, changed, options = {}) {
     const forced = options.full === true;
     const detectedReason = forced ? null : escalationReasonFor(changed);
     const mode = forced || detectedReason ? 'full' : 'changed';
+    const source = filesystemRecordSource(rootDir);
     const allFiles = await discoverRecords(rootDir);
     if (mode === 'full') {
-        const { diagnostics } = await runValidation(rootDir, allFiles);
+        const { diagnostics } = await runValidation(source, allFiles);
         return { diagnostics, summary: summarize(diagnostics, allFiles.length), mode: 'full', escalationReason: detectedReason };
     }
-    const { diagnostics: allDiagnostics, repoContexts } = await runValidation(rootDir, allFiles);
+    const { diagnostics: allDiagnostics, repoContexts } = await runValidation(source, allFiles);
     const changedPaths = new Set(changed.filter((f) => f.status !== 'deleted').map((f) => f.path));
     const touchedPaths = new Set(changedPaths);
     for (const file of changed) {
@@ -169,8 +171,8 @@ export async function validateChanged(rootDir, changed, options = {}) {
         escalationReason: null,
     };
 }
-async function validateOneFile(rootDir, file) {
-    const ctx = await readRecordContext(rootDir, file);
+async function validateOneFile(source, file) {
+    const ctx = await readRecordContext(source, file);
     return { diagnostics: runRecordRules(ctx), repoContext: toRepoContext(file, ctx.raw, ctx.frontmatter) };
 }
 export function summarize(diagnostics, fileCount) {

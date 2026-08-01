@@ -1,4 +1,22 @@
+/**
+ * The rule pipeline: the single statement of *what runs, in what order,
+ * under what preconditions* — and the one place a new rule phase is added.
+ *
+ * ADR-0002 exists because two implementations of validation would drift. That
+ * argument does not stop at the CLI/API line: this repo previously wrote the
+ * phase sequence out twice inside the core itself, once in `validate.ts` (a
+ * record on disk) and once in `validateCandidate.ts` (a record proposed
+ * in-memory), held together by a contract test that compared their outputs.
+ * A test that catches drift is strictly worse than a structure that can't
+ * drift, so the sequence lives here and both entry points call it.
+ *
+ * What legitimately differs between the two is *which records the rules see*
+ * — a discovered tree, or that tree plus one candidate overlaid on it — and
+ * which rules are meaningful for a record that has no place in the repo yet
+ * (`skipRules`). Those are parameters, not reasons for a second pipeline.
+ */
 import { type FrontmatterParseResult } from './frontmatter.js';
+import type { RecordSource } from './recordSource.js';
 import { type RuleContext, type RepoRuleFileContext, type LoreConfigInput } from './rules/index.js';
 import type { Diagnostic } from './types.js';
 export interface RulePhaseOptions {
@@ -54,12 +72,19 @@ export declare function runConfigRules(config: LoreConfigInput, files: RepoRuleF
 export declare function toRepoContext(file: string, raw: string, 
 /** Pass an existing parse to avoid a second one — `validateFiles` already parsed this record to run its per-record rules. */
 frontmatter?: FrontmatterParseResult): RepoRuleFileContext | undefined;
-/** Reads one record off disk into the context every per-record rule takes. */
-export declare function readRecordContext(rootDir: string, file: string): Promise<RuleContext>;
+/** Reads one record into the context every per-record rule takes, via `source` (docs/issues/0113 — the filesystem by default, a specific git ref for the API's `validate_record`). */
+export declare function readRecordContext(source: RecordSource, file: string): Promise<RuleContext>;
 /**
  * Loads the repo-level contexts for `files` without diagnosing them — what
  * candidate validation needs to overlay a proposal on the live catalog and ask
- * repo-wide questions of the result.
+ * repo-wide questions of the result. Reads run concurrently, not one read per
+ * `await`: a git-ref `RecordSource` (docs/issues/0113) pays a subprocess spawn
+ * per file, and `files` here is every record in the repo — serializing those
+ * would turn `validate_record` into one `git show` per canon record. A file
+ * `source` no longer has (a race between `listFiles()` and this read) is
+ * silently dropped rather than throwing — the same posture `discoverRecords`
+ * implicitly had, since a file that vanished between the readdir and the read
+ * was never in `found` to begin with.
  */
-export declare function loadRepoContexts(rootDir: string, files: string[]): Promise<RepoRuleFileContext[]>;
+export declare function loadRepoContexts(source: RecordSource, files: string[]): Promise<RepoRuleFileContext[]>;
 //# sourceMappingURL=pipeline.d.ts.map

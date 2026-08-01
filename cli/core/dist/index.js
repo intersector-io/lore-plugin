@@ -6,6 +6,7 @@ export { validateAgainstSchema } from './jsonSchema.js';
 export { generateUlid } from './ulid.js';
 export { deriveScope } from './scope.js';
 export { scaffoldRecord, supersedeRecord, locateActivePredecessor, flipStatusToSuperseded, flipStatusToRetired, ScaffoldError, resolveScope, slugify, } from './scaffold.js';
+export { initRepo, InitPostconditionError } from './scaffoldRepo.js';
 export { LINK_TYPES, readLinkTargets, readRecordId } from './rules/linkHelpers.js';
 export { readField, isNonEmptyString, isIsoDate, isIsoDatetime } from './rules/fieldHelpers.js';
 export { humanActor, processActor, generatedStamp, HARVESTER_ACTOR, ACTOR_PATTERN } from './actor.js';
@@ -18,5 +19,6 @@ export { summarize } from './validate.js';
 export { parseGrantsYml, isWellFormedScope, GRANTS_FILE } from './rules/loreConfigParse.js';
 export { validateGrantsYml, serializeGrantsYml } from './rules/grantsIntegrity.js';
 export { readLoreConfigFiles, hasAnyLoreConfig } from './loreConfigFiles.js';
+export { filesystemRecordSource } from './recordSource.js';
 export { SEARCH_TOOLS, READ_TOOLS, RECORD_FETCH_TOOL } from './tools.js';
 //# sourceMappingURL=index.js.map

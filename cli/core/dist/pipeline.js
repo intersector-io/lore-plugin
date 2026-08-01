@@ -15,8 +15,6 @@
  * which rules are meaningful for a record that has no place in the repo yet
  * (`skipRules`). Those are parameters, not reasons for a second pipeline.
  */
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { parseFrontmatter } from './frontmatter.js';
 import { hasAnyLoreConfig } from './loreConfigFiles.js';
 import { FRONTMATTER_PRESENCE_RULES, SECRET_RULES, SCHEMA_RULES, RECORD_RULES, TYPE_RULES, LINK_RULES, REPO_RULES, CONFIG_RULES, } from './rules/index.js';
@@ -89,21 +87,32 @@ frontmatter = parseFrontmatter(raw)) {
         return undefined;
     return { file, frontmatter: frontmatter.value, raw };
 }
-/** Reads one record off disk into the context every per-record rule takes. */
-export async function readRecordContext(rootDir, file) {
-    const raw = await readFile(path.join(rootDir, file), 'utf8');
+/** Reads one record into the context every per-record rule takes, via `source` (docs/issues/0113 — the filesystem by default, a specific git ref for the API's `validate_record`). */
+export async function readRecordContext(source, file) {
+    const raw = await source.readFile(file);
+    if (raw === undefined)
+        throw new Error(`Record source has no file "${file}"`);
     return { file, raw, frontmatter: parseFrontmatter(raw) };
 }
 /**
  * Loads the repo-level contexts for `files` without diagnosing them — what
  * candidate validation needs to overlay a proposal on the live catalog and ask
- * repo-wide questions of the result.
+ * repo-wide questions of the result. Reads run concurrently, not one read per
+ * `await`: a git-ref `RecordSource` (docs/issues/0113) pays a subprocess spawn
+ * per file, and `files` here is every record in the repo — serializing those
+ * would turn `validate_record` into one `git show` per canon record. A file
+ * `source` no longer has (a race between `listFiles()` and this read) is
+ * silently dropped rather than throwing — the same posture `discoverRecords`
+ * implicitly had, since a file that vanished between the readdir and the read
+ * was never in `found` to begin with.
  */
-export async function loadRepoContexts(rootDir, files) {
+export async function loadRepoContexts(source, files) {
+    const reads = await Promise.all(files.map((file) => source.readFile(file)));
     const contexts = [];
-    for (const file of files) {
-        const raw = await readFile(path.join(rootDir, file), 'utf8');
-        const context = toRepoContext(file, raw);
+    for (const [i, raw] of reads.entries()) {
+        if (raw === undefined)
+            continue;
+        const context = toRepoContext(files[i], raw);
         if (context)
             contexts.push(context);
     }

@@ -1,7 +1,20 @@
+import { type RecordSource } from './recordSource.js';
 import type { ValidationResult } from './types.js';
 export interface ValidateCandidateOptions {
     /** `org`, `product:<slug>`, or `team:<slug>` (CONTEXT.md "Scope"). Needed, along with a `title` in the candidate frontmatter, to derive the candidate's would-be path `<scope>/<type>/<slug>.md` — required for `record/placement` and `record/ulid-unique` to run. Omitted, malformed, or no title to slug: both are skipped and a `candidate/path-not-derivable` warning names which of the three applied (docs/issues/0092). A title present but unsluggable is the fourth case and an error, `candidate/slug-empty`. */
     scope?: string;
+    /**
+     * Overrides where the live catalog this candidate is checked against comes
+     * from — defaults to the plain filesystem at `repoRoot`. docs/issues/0113:
+     * `validate_record`'s persistent checkout is never fast-forwarded once a
+     * deployment is running, so it can disagree with `propose_record` (which
+     * always clones `main` fresh) about a record added after clone time. The
+     * API supplies a source that reads a specific git ref instead, so both
+     * faces answer from the same canon — which ref that is stays an explicit
+     * parameter at the call site, never an accident of when this instance last
+     * advanced its checkout.
+     */
+    source?: RecordSource;
 }
 /**
  * Validate a single in-memory candidate record (full markdown incl.

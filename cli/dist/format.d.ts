@@ -7,4 +7,5 @@ export interface CliJsonOutput {
 }
 export declare function toJsonOutput(result: ValidationModeResult): CliJsonOutput;
 export declare function formatHuman(result: ValidationModeResult): string;
+export declare function formatDiagnosticLine(diagnostic: Diagnostic): string;
 //# sourceMappingURL=format.d.ts.map

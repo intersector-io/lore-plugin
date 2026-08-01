@@ -1,8 +1,8 @@
 import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { humanActor, validateRepo, validateChanged, getChangedFiles, isKnowledgeRepoRoot, scaffoldRecord, supersedeRecord, ScaffoldError, } from '@lore/core';
-import { formatHuman, toJsonOutput } from './format.js';
+import { humanActor, validateRepo, validateChanged, getChangedFiles, isKnowledgeRepoRoot, scaffoldRecord, supersedeRecord, initRepo, ScaffoldError, InitPostconditionError, } from '@lore/core';
+import { formatDiagnosticLine, formatHuman, toJsonOutput } from './format.js';
 const execFileAsync = promisify(execFile);
 /**
  * The CLI's acting identity for the OKF 0.2 `generated.by` stamp: the repo's
@@ -27,7 +27,8 @@ const EXIT_OK = 0;
 const USAGE = 'Usage:\n' +
     '  lore validate [path] [--format human|json] [--changed <base-ref>] [--full]\n' +
     '  lore new <type> --scope <org|product:slug|team:slug> --title <title> [--repo <path>] [--description <desc>] [--format human|json]\n' +
-    '  lore supersede <ulid> --title <title> [--repo <path>] [--description <desc>] [--format human|json]\n';
+    '  lore supersede <ulid> --title <title> [--repo <path>] [--description <desc>] [--format human|json]\n' +
+    '  lore init <dir> [--scopes <product:slug|team:slug>[,...]]... --identity <handle=corporate-identity>... [--format human|json]\n';
 /**
  * Programmatic CLI entry point. The `lore` binary (src/cli.ts) is a thin
  * wrapper over this function — everything a test needs to assert (exit
@@ -56,6 +57,9 @@ export async function main(argv, io) {
     }
     if (command === 'supersede') {
         return runSupersede(rest, io);
+    }
+    if (command === 'init') {
+        return runInit(rest, io);
     }
     io.stderr(`Unknown command: ${command}\n${USAGE}`);
     return EXIT_USAGE_ERROR;
@@ -299,6 +303,98 @@ async function runSupersede(args, io) {
     }
     else {
         io.stdout(`Wrote ${result.relativePath} (id: ${result.id}), superseded ${result.predecessorPath}\n`);
+    }
+    return EXIT_OK;
+}
+/** `--scopes`/`--identity` are repeatable AND accept a comma-separated list per occurrence (docs/issues/0111). */
+function parseInitFlags(args, io) {
+    const flags = { positional: [], scopes: [], identities: [], format: 'human' };
+    for (let i = 0; i < args.length; i += 1) {
+        const arg = args[i];
+        if (arg === '--scopes' || arg === '--identity' || arg === '--format') {
+            const value = args[i + 1];
+            if (!value || value.startsWith('--')) {
+                io.stderr(`${arg} requires a value\n`);
+                return undefined;
+            }
+            if (arg === '--format') {
+                if (value !== 'human' && value !== 'json') {
+                    io.stderr(`--format must be "human" or "json", got: ${value}\n`);
+                    return undefined;
+                }
+                flags.format = value;
+            }
+            else if (arg === '--scopes') {
+                flags.scopes.push(...value.split(',').map((s) => s.trim()).filter(Boolean));
+            }
+            else {
+                for (const entry of value.split(',').map((s) => s.trim()).filter(Boolean)) {
+                    const eq = entry.indexOf('=');
+                    if (eq <= 0 || eq === entry.length - 1) {
+                        io.stderr(`--identity entries must be "handle=corporate-identity": got "${entry}"\n`);
+                        return undefined;
+                    }
+                    flags.identities.push({ handle: entry.slice(0, eq), identity: entry.slice(eq + 1) });
+                }
+            }
+            i += 1;
+            continue;
+        }
+        if (arg?.startsWith('--')) {
+            io.stderr(`Unknown flag: ${arg}\n`);
+            return undefined;
+        }
+        flags.positional.push(arg);
+    }
+    return flags;
+}
+async function runInit(args, io) {
+    const flags = parseInitFlags(args, io);
+    if (!flags)
+        return EXIT_USAGE_ERROR;
+    const [targetArg, ...extra] = flags.positional;
+    if (!targetArg) {
+        io.stderr(`lore init requires a <dir> argument\n${USAGE}`);
+        return EXIT_USAGE_ERROR;
+    }
+    if (extra.length > 0) {
+        io.stderr(`Unexpected extra argument: ${extra[0]}\n`);
+        return EXIT_USAGE_ERROR;
+    }
+    const targetDir = path.resolve(io.cwd, targetArg);
+    let result;
+    try {
+        result = await initRepo({ targetDir, scopes: flags.scopes, identities: flags.identities });
+    }
+    catch (err) {
+        if (err instanceof InitPostconditionError) {
+            if (flags.format === 'json') {
+                io.stderr(`${JSON.stringify({ rule: 'scaffold/postcondition-failed', diagnostics: err.diagnostics })}\n`);
+            }
+            else {
+                io.stderr('lore init produced an invalid tree and wrote nothing. Diagnostics:\n');
+                for (const diagnostic of err.diagnostics)
+                    io.stderr(`${formatDiagnosticLine(diagnostic)}\n`);
+            }
+            return EXIT_VALIDATION_ERRORS;
+        }
+        return reportScaffoldError(err, flags.format, io, targetDir);
+    }
+    if (flags.format === 'json') {
+        io.stdout(`${JSON.stringify({
+            targetDir: result.targetDir,
+            scopes: result.scopes,
+            summary: result.validation.summary,
+        })}\n`);
+    }
+    else {
+        io.stdout(`Wrote canonical repo scaffold to ${result.targetDir}\n` +
+            `  scopes: ${result.scopes.join(', ')}\n` +
+            `  validated: ${result.validation.summary.errors} errors, ${result.validation.summary.warnings} warnings, ${result.validation.summary.files} files\n\n` +
+            'Next steps:\n' +
+            `  cd ${result.targetDir}\n` +
+            '  git init -b main && git add -A && git commit -m "seed from lore init"\n' +
+            '  git remote add origin <your-remote-url> && git push -u origin main\n');
     }
     return EXIT_OK;
 }
