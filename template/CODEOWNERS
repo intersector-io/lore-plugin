@@ -7,26 +7,38 @@
 # never enters the catalog and `lore validate` never inspects it; it only
 # configures the git host's PR review requirement. See README.md
 # "`.lore/` configuration" / "Review routing" for the full convention.
+#
+# ---------------------------------------------------------------------------
+# REPLACE EVERY `@your-org/...` BELOW BEFORE YOU USE THIS REPOSITORY.
+#
+# They are placeholders, and the failure mode is silent: a CODEOWNERS line
+# naming a team your git host does not have routes review to NOBODY. The host
+# does not error, `lore validate` never inspects this file (by design — it is
+# host config, not a record), and the rule looks enforced while it isn't. The
+# first thing you learn is that a promotion which should have required a
+# reviewer didn't. See docs/issues/0108.
+#
+# If your organization is one team, that is fine — name one account on every
+# line. One real account beats four aspirational groups.
+# ---------------------------------------------------------------------------
 
 # Org-tier records (org/*, excluding org/type/ below) default to the
 # architecture group — org-scope knowledge is cross-cutting by definition.
-/org/**                        @architecture
+/org/**                        @your-org/architecture
 
 # The type catalog (org/type/) and Lore's own deployment configuration
 # (.lore/) are platform-level surfaces: changing what counts as a valid
 # record type, or the identity/grant model itself, is a platform change
 # regardless of which scope's contributor opened the PR.
-/org/type/**                   @platform-maintainers
-/.lore/**                      @platform-maintainers
-/CODEOWNERS                    @platform-maintainers
+/org/type/**                   @your-org/platform-maintainers
+/.lore/**                      @your-org/platform-maintainers
+/CODEOWNERS                    @your-org/platform-maintainers
 
-# Product-tier records route to that product's own reviewers. Placeholder
-# alias pattern below — add one line per product as products/ grows, replacing
-# <product-slug> with the real directory name (e.g. products/acme/**).
-# /products/<product-slug>/**  @product-<product-slug>-team
-/products/acme/**               @product-acme-team
+# Product-tier records route to that product's own reviewers. One line per
+# product as products/ grows; the line below matches the bundled
+# products/acme/ example record, so delete it when you delete that example.
+/products/acme/**              @your-org/product-acme-team
 
-# Team-tier records route to that team's own reviewers. Placeholder alias
-# pattern below — add one line per team as teams/ grows, replacing <team-slug>
-# with the real directory name (e.g. teams/platform/**).
-# /teams/<team-slug>/**        @team-<team-slug>
+# Team-tier records route to that team's own reviewers. Add one line per team
+# as teams/ grows, replacing <team-slug> with the real directory name.
+# /teams/<team-slug>/**        @your-org/team-<team-slug>
