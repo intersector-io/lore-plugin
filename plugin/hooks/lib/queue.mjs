@@ -17,7 +17,12 @@ import path from 'node:path';
 export const MAX_ATTEMPTS = 3;
 export const DRAIN_BATCH_SIZE = 3;
 export const STALE_CLAIM_MS = 30 * 60 * 1000;
-export const DONE_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
+/**
+ * How long terminal entries (`done` and `parked`) are kept. Parked entries
+ * age out too — an unrecoverable park (e.g. "transcript missing") must not
+ * nag every session start forever (docs/issues/0124).
+ */
+export const TERMINAL_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
 /**
  * How long a `Stop`-enqueued entry must sit untouched before it may be
  * drained. Codex fires Stop per turn while the session is still live
@@ -99,6 +104,26 @@ export function isFresh(ts, now) {
   if (typeof ts !== 'string') return false;
   const age = now - new Date(ts).getTime();
   return Number.isFinite(age) && age >= 0 && age < STALE_CLAIM_MS;
+}
+
+/**
+ * Is this a terminal entry (`done`/`parked`) past its retention window?
+ * Age counts from `ts`, which every transition into a terminal state
+ * restamps — retention starts at completion/parking, not enqueue.
+ */
+export function terminalExpired(entry, now) {
+  return (
+    (entry.status === 'done' || entry.status === 'parked') &&
+    now - entryTime(entry) >= TERMINAL_RETENTION_MS
+  );
+}
+
+/**
+ * The one "this capture can never drain" rule: no librarian run can succeed
+ * without a readable transcript (docs/issues/0124).
+ */
+export function transcriptMissing(transcriptPath) {
+  return !transcriptPath || !existsSync(transcriptPath);
 }
 
 /** May this entry be handed to a librarian run right now? */

@@ -32,7 +32,15 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BRIEF_CAP, briefPathIn, drainEligible, loreHome, queuePathIn, readQueue } from './lib/queue.mjs';
+import {
+  BRIEF_CAP,
+  briefPathIn,
+  drainEligible,
+  loreHome,
+  queuePathIn,
+  readQueue,
+  terminalExpired,
+} from './lib/queue.mjs';
 
 const hooksDir = path.dirname(fileURLToPath(import.meta.url));
 const drainScript = path.join(hooksDir, 'drain-queue.mjs');
@@ -170,7 +178,10 @@ function main() {
   const now = Date.now();
   const queue = readQueue(queuePathIn(home));
   const queued = queue.filter((e) => e.status === 'queued');
-  const parked = queue.filter((e) => e.status === 'parked');
+  // Parked entries past retention are ignored, not deleted — this hook is
+  // read-only; the next claim prunes them. Without this, a parked-only queue
+  // (which never triggers a claim) would nag forever (docs/issues/0124).
+  const parked = queue.filter((e) => e.status === 'parked' && !terminalExpired(e, now));
   const { proposals, drops } = readProposalsState(statePath);
   const brief = readBrief(briefPathIn(home));
   // Nothing waiting on this team ⇒ say nothing at all (docs/issues/0091). A

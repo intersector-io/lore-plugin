@@ -22,7 +22,7 @@
  * stdin shape must still record sessions).
  */
 import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
-import { loreHome, queuePathIn, readQueue, writeQueue } from './lib/queue.mjs';
+import { loreHome, queuePathIn, readQueue, transcriptMissing, writeQueue } from './lib/queue.mjs';
 
 function readStdinJson() {
   if (process.stdin.isTTY) return {};
@@ -54,6 +54,13 @@ function main() {
       }
       return;
     }
+  }
+  // A transcript path absent at session end never appears later — it is the
+  // ghost of a mid-session id rotation (docs/issues/0124); the real file's
+  // own SessionEnd enqueues the capture under its own id. A null path
+  // (unknown stdin shape) still records the session, as before.
+  if (typeof input.transcript_path === 'string' && transcriptMissing(input.transcript_path)) {
+    return;
   }
   const entry = {
     ts: new Date().toISOString(),

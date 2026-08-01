@@ -16,12 +16,13 @@
  *                                Also: recovers stale draining claims
  *                                (counts as a failed attempt), parks
  *                                entries with no readable transcript or
- *                                no session ref, prunes old done entries.
+ *                                no session ref, prunes done/parked
+ *                                entries past retention.
  *   complete <ref> <token>       mark the claimed entry done
  *   fail <ref> <token> [msg]     count a failed attempt; re-queue, or
  *                                park at MAX_ATTEMPTS
  *   retry                        reset every parked entry to queued
- *                                (attempts 0)
+ *                                (attempts 0); prunes expired ones
  *
  * <token> is the entry's `claimedAt` exactly as printed by `claim`. It
  * makes transitions claim-specific: a slow drain whose claim expired and
@@ -32,9 +33,8 @@
  * forgets nothing more than its own bookkeeping cannot wedge the queue —
  * and a crashed one is recovered by the next claim after STALE_CLAIM_MS.
  */
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import {
-  DONE_RETENTION_MS,
   DRAIN_BATCH_SIZE,
   MAX_ATTEMPTS,
   drainEligible,
@@ -46,6 +46,8 @@ import {
   queuePathIn,
   readLock,
   readQueue,
+  terminalExpired,
+  transcriptMissing,
   writeQueue,
 } from './lib/queue.mjs';
 
@@ -54,6 +56,11 @@ function failEntry(entry, message) {
   const failed = { ...entry, attempts, lastError: message };
   delete failed.claimedAt;
   failed.status = attempts >= MAX_ATTEMPTS ? 'parked' : 'queued';
+  if (failed.status === 'parked') {
+    // Retention ages a terminal entry from the transition into it, the same
+    // way `complete` restamps ts for done.
+    failed.ts = new Date().toISOString();
+  }
   return failed;
 }
 
@@ -77,9 +84,7 @@ function claim(home, now) {
     return failEntry(e, 'drain claim expired');
   });
 
-  entries = entries.filter(
-    (e) => e.status !== 'done' || now - entryTime(e) < DONE_RETENTION_MS,
-  );
+  entries = entries.filter((e) => !terminalExpired(e, now));
 
   const lock = readLock(lockPath);
   const lockHeld = lockIsFresh(lock, now) && entries.some((e) => e.status === 'draining');
@@ -92,10 +97,10 @@ function claim(home, now) {
       // entry (transitions match by ref), so claiming it would only
       // starve the batch until it force-parks.
       if (!e.sessionRef) {
-        return { ...e, status: 'parked', lastError: 'no session ref' };
+        return { ...e, ts: new Date(now).toISOString(), status: 'parked', lastError: 'no session ref' };
       }
-      if (!e.transcriptPath || !existsSync(e.transcriptPath)) {
-        return { ...e, status: 'parked', lastError: 'transcript missing' };
+      if (transcriptMissing(e.transcriptPath)) {
+        return { ...e, ts: new Date(now).toISOString(), status: 'parked', lastError: 'transcript missing' };
       }
       return e;
     });
@@ -170,12 +175,17 @@ function main() {
     }
     case 'retry': {
       const queuePath = queuePathIn(home);
-      const entries = readQueue(queuePath).map((e) => {
-        if (e.status !== 'parked') return e;
-        const retried = { ...e, status: 'queued', attempts: 0 };
-        delete retried.lastError;
-        return retried;
-      });
+      // An expired parked entry is pruned, never resurrected — it was no
+      // longer being shown, so retrying it would revive work the user never
+      // saw (docs/issues/0124).
+      const entries = readQueue(queuePath)
+        .filter((e) => !terminalExpired(e, now))
+        .map((e) => {
+          if (e.status !== 'parked') return e;
+          const retried = { ...e, status: 'queued', attempts: 0 };
+          delete retried.lastError;
+          return retried;
+        });
       writeQueue(queuePath, entries);
       return;
     }
