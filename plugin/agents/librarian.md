@@ -8,7 +8,7 @@ description: |
   against that queue entry (invoked by a human, a scheduler, or the harvester in a later
   phase). Not for ad hoc use mid-conversation to "write up what we did" — that's the
   authoring skill. This agent is specifically the dedup-then-batch-propose loop.
-tools: Read, Grep, Glob, Bash, mcp__lore__search_knowledge, mcp__lore__get_record, mcp__lore__get_related, mcp__lore__list_records, mcp__lore__create_record, mcp__lore__validate_record, mcp__lore__propose_record, mcp__lore__retract
+tools: Read, Grep, Glob, Bash, mcp__plugin_lore_lore__search_knowledge, mcp__plugin_lore_lore__get_record, mcp__plugin_lore_lore__get_related, mcp__plugin_lore_lore__list_records, mcp__plugin_lore_lore__create_record, mcp__plugin_lore_lore__validate_record, mcp__plugin_lore_lore__propose_record, mcp__plugin_lore_lore__retract
 model: sonnet
 ---
 

@@ -62,8 +62,13 @@ stays at the plugin root:
 - `agents/` — `librarian` (capture → dedupe → batch-propose) and
   `conflict-checker` (read-only gate against canon).
 - `hooks/` — SessionEnd enqueues a capture; SessionStart renders what's pending.
-- `.mcp.json` — the MCP server. Its key (`lore`) is what the agents' tool refs
-  namespace under (`mcp__lore__*`); the two must agree.
+- `.mcp.json` — the MCP server, keyed `lore`. Claude Code namespaces a
+  plugin-bundled server's tools as `mcp__plugin_<plugin-name>_<server-key>__*`
+  — here `mcp__plugin_lore_lore__*`, since both the plugin name and the
+  server key are `lore` — never the bare `mcp__lore__*` form (that only
+  applies to a non-plugin MCP client connecting to lore directly). The
+  agents' `tools:` frontmatter must namespace under the plugin-scoped form,
+  or Claude Code resolves none of their MCP tools (docs/issues/0114).
 - `codex/` — the Codex-only glue (docs/issues/0054): `config.toml` (the
   `[mcp_servers.lore]` fragment), `hooks.json` (SessionStart + Stop — Codex
   has no SessionEnd, so the enqueue hook dedupes by session id), and

@@ -7,7 +7,7 @@ description: |
   opening a PR that makes a structural choice, or whenever asked to check a plan "against
   Lore" or "against canon" or "against our ADRs". Never writes to Lore — no create_record,
   validate_record, propose_record, or retract calls; this agent only reads and reports.
-tools: Read, Grep, Glob, Bash, mcp__lore__search_knowledge, mcp__lore__get_record, mcp__lore__get_related, mcp__lore__list_records
+tools: Read, Grep, Glob, Bash, mcp__plugin_lore_lore__search_knowledge, mcp__plugin_lore_lore__get_record, mcp__plugin_lore_lore__get_related, mcp__plugin_lore_lore__list_records
 model: sonnet
 ---
 
