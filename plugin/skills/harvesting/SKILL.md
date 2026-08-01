@@ -69,9 +69,11 @@ transcript). In brief:
 `create_record(type)` and its classification test; dedup each via
 `search_knowledge` with `include_drafts: true` to the four-verdict screen
 (duplicate / conflicts-with / enriches / distinct); `validate_record` until
-clean; and `propose_record` **always with `batch:` set** — N one-off
-proposal PRs from one extraction session is precisely the reviewer flood
-the rolling batch exists to prevent. The librarian file is the authority on
+clean; and `propose_record` **with `batch:` set wherever the scope allows
+one** — N one-off proposals from one extraction session is precisely the
+reviewer flood the rolling batch exists to prevent. `org` is the exception:
+the server refuses `batch: "org"`, so org-scope candidates go without it.
+The librarian file is the authority on
 each verdict's action and the guardrails (never invent a ULID, secret lint
 is a hard gate); don't improvise a variant here.
 

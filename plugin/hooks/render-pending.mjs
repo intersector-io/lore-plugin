@@ -111,9 +111,16 @@ export function renderNotification({ queueCount, parked, proposals, drops }) {
       lines.push(`    - ${clean(p.sessionRef ?? '(unknown session)', 80)}: ${clean(p.lastError ?? 'unknown error', 200)}`);
     }
   }
-  lines.push(
-    `  ${proposals.length} proposal${proposals.length === 1 ? '' : 's'} awaiting review.`,
-  );
+  // Only when there is something to say. Nothing in the plugin writes the
+  // `proposals` array today (the librarian appends to `drops` only), so an
+  // unconditional line announced "0 proposals awaiting review" in every
+  // session — flatly contradicting this module's own contract above, and
+  // wrong besides: the instance had proposals open at the time.
+  if (proposals.length > 0) {
+    lines.push(
+      `  ${proposals.length} proposal${proposals.length === 1 ? '' : 's'} awaiting review.`,
+    );
+  }
   for (const p of proposals) {
     const ulid = clean(p.ulid ?? '<ulid>', 40);
     const label = [p.type, p.scope, p.summary]
@@ -126,7 +133,7 @@ export function renderNotification({ queueCount, parked, proposals, drops }) {
   }
   if (drops.length > 0) {
     lines.push(
-      `  ${drops.length} candidate${drops.length === 1 ? '' : 's'} dropped as duplicates on the last librarian run:`,
+      `  ${drops.length} candidate${drops.length === 1 ? ' dropped as a duplicate' : 's dropped as duplicates'} on the last librarian run:`,
     );
     for (const d of drops) {
       const summary = clean(d.candidateSummary ?? '(no summary)', 200);
