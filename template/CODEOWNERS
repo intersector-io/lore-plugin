@@ -16,7 +16,7 @@
 # does not error, `lore validate` never inspects this file (by design — it is
 # host config, not a record), and the rule looks enforced while it isn't. The
 # first thing you learn is that a promotion which should have required a
-# reviewer didn't. See docs/issues/0108.
+# reviewer didn't. See docs/issues/0111.
 #
 # If your organization is one team, that is fine — name one account on every
 # line. One real account beats four aspirational groups.
