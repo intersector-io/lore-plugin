@@ -97,9 +97,14 @@ export function readQueue(queuePath) {
  */
 export function writeQueue(queuePath, entries) {
   const body = entries.map((e) => JSON.stringify(e)).join('\n');
-  const tmpPath = `${queuePath}.tmp`;
-  writeFileSync(tmpPath, body ? body + '\n' : '', 'utf8');
-  renameSync(tmpPath, queuePath);
+  atomicReplace(queuePath, body ? body + '\n' : '');
+}
+
+/** The tmp+rename primitive behind writeQueue, shared with pending-proposals.mjs. */
+export function atomicReplace(filePath, body) {
+  const tmpPath = `${filePath}.tmp`;
+  writeFileSync(tmpPath, body, 'utf8');
+  renameSync(tmpPath, filePath);
 }
 
 export function entryTime(entry) {

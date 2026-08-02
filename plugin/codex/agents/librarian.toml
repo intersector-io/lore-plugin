@@ -55,6 +55,19 @@ context:
    Zero matching records is normal on a young deployment — skip the write
    and move on, don't invent entries.
 
+Then prune decided proposals, so the session-start notification never keeps
+announcing (with a `retract` offer!) proposals that were already promoted or
+rejected — the drain is the scheduled moment this happens, not a user
+question:
+
+1. Read `${LORE_HOME:-~/.lore}/pending-proposals.json`. For each **distinct**
+   `ref` among its `proposals` entries (batch candidates share one PR — one
+   call covers them all), call `get_proposal(ref)`.
+2. Collect the ULIDs of entries whose proposal is decided (merged or
+   closed) and remove them in one call:
+   `echo '{"ulids": ["..."]}' | node "<hooks dir>/pending-proposals.mjs" prune`.
+   Skip the call when nothing is decided.
+
 Then finish with one combined run-notes summary (step 5) covering every
 entry you drained.
 
@@ -124,11 +137,10 @@ grant) is a 403 at propose time — after the entire candidate has been written.
 - **duplicate** — do **not** propose. There is currently no tool that
   writes directly onto an open batch PR's description (no
   "comment on this PR" surface exists yet on the MCP tool list), so the
-  audit trail for a drop lives in this run's local state instead: append an
-  entry to the `drops` array of `${LORE_HOME:-~/.lore}/pending-proposals.json`
-  (create the file/array if absent) with `{candidateSummary, matchedUlid,
-  reason}`. The session-start hook (`render-pending.mjs`) surfaces drops
-  from that file at the next session start, so the decision is visible even
+  audit trail for a drop lives in this run's local state instead: note
+  `{candidateSummary, matchedUlid, reason}` for the end-of-run write
+  (step 5). The session-start hook (`render-pending.mjs`) surfaces drops
+  from that state at the next session start, so the decision is visible even
   though it isn't literally in the PR body. Treat this as a known gap versus
   the PRD's "logged in the batch PR" language, not a silent omission — say
   so in your run notes if asked.
@@ -158,12 +170,28 @@ trip a human has to notice.
 
 ## 5. Record what you did
 
-At the end of a run, your output (and the `pending-proposals.json` update)
-should account for every candidate you extracted: proposed (with the
-resulting `pr.ref` from `propose_record`), dropped (with the matched ULID
-and reason), or discarded pre-dedup (didn't pass a classification test).
-Silence about a candidate you noticed but didn't act on is not acceptable —
-say what happened to it.
+At the end of a run, your output should account for every candidate you
+extracted: proposed (with the resulting `pr.ref` from `propose_record`),
+dropped (with the matched ULID and reason), or discarded pre-dedup (didn't
+pass a classification test). Silence about a candidate you noticed but
+didn't act on is not acceptable — say what happened to it.
+
+Then persist the run's bookkeeping in ONE call to the state writer — never
+edit `pending-proposals.json` yourself; all its transitions live in the
+script, exactly like the capture queue and `drain-queue.mjs`:
+
+```
+echo '{"proposals": [{"ulid": "...", "type": "...", "scope": "...",
+  "summary": "<record title>", "ref": "<pr.ref>"}, ...],
+  "drops": [{"candidateSummary": "...", "matchedUlid": "...",
+  "reason": "..."}, ...]}' | node "<hooks dir>/pending-proposals.mjs" record
+```
+
+One `proposals` entry per record you proposed, one `drops` entry per
+duplicate you dropped; either array may be empty. Every field comes from
+this run's tool results. This state is what the session-start hook renders
+and what the promotion skill answers "what did my sessions contribute?"
+from.
 
 ## Guardrails
 
@@ -182,4 +210,4 @@ say what happened to it.
 '''
 
 [mcp_servers.lore]
-enabled_tools = ["search_knowledge", "get_record", "get_related", "list_records", "create_record", "validate_record", "propose_record", "retract"]
+enabled_tools = ["search_knowledge", "get_record", "get_related", "list_records", "create_record", "validate_record", "propose_record", "get_proposal", "retract"]

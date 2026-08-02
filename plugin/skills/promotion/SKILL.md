@@ -5,6 +5,10 @@ description: |
   existing active record — revision (same record, corrected text) vs supersession
   (new record replaces old). Use after propose_record has opened a PR and you need to
   check its status, remind someone to review it, or when existing canon needs changing.
+  Also use when the user asks what their recent sessions contributed — "what got
+  extracted from my sessions", "what did lore capture", "my recent/pending
+  contributions" — which is answered from the local pending-proposals cache confirmed
+  against get_proposal.
 ---
 
 # Promotion
@@ -45,6 +49,40 @@ the proposal's review state.
 3. An unknown `ref` comes back as a not-found error, not a crash — double
    check you're passing the exact `ref` string `propose_record` returned,
    not a reconstructed guess.
+
+## Answering "what did my sessions contribute?"
+
+Session capture is asynchronous: the session-end hook only *enqueues* a
+reference, and the librarian extracts and proposes on a later drain. So the
+**current session has contributed nothing yet** — say so; what exists now
+came from previous sessions, recorded by librarian runs in
+`${LORE_HOME:-~/.lore}/pending-proposals.json` (`proposals` opened and
+duplicate `drops`, shapes owned by this plugin's
+`hooks/pending-proposals.mjs`).
+
+To answer:
+
+1. Read the file. If both arrays are empty (or it's absent), nothing has
+   been proposed from this machine yet — explain "nothing" with the capture
+   queue state: run this plugin's `hooks/drain-queue.mjs status` for the
+   queued/parked counts. Never count raw `capture-queue.jsonl` lines
+   yourself — entry statuses and expiry live in that script.
+2. The file is a per-machine, stale-is-fine cache — confirm before
+   reporting. Group `proposals` entries by `ref` (batch candidates share
+   one PR) and call `get_proposal` once per distinct ref, newest first;
+   past ~20 refs, report the rest from the cache and point at the portal's
+   review page. Report open ones for review (see "Handing it to the human
+   who decides"); report merged ones as promoted canon.
+3. Collect the ULIDs of decided (merged/closed) entries as you go, then
+   remove them in one call:
+   `echo '{"ulids": ["..."]}' | node "<hooks dir>/pending-proposals.mjs" prune`.
+   Never rewrite the file by hand — the script is its only writer.
+4. Mention `drops` when present — a user asking "what got extracted" also
+   deserves to hear what was deliberately *not* proposed and why. A pending
+   entry the user disowns is `retract(record_ulid)`.
+
+Proposals opened from another machine won't appear here; the cross-machine
+view is the portal's review page.
 
 ## Answering "please change X" (request changes)
 

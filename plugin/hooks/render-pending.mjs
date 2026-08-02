@@ -120,11 +120,8 @@ export function renderNotification({ queueCount, parked, proposals, drops }) {
       lines.push(`    - ${clean(p.sessionRef ?? '(unknown session)', 80)}: ${clean(p.lastError ?? 'unknown error', 200)}`);
     }
   }
-  // Only when there is something to say. Nothing in the plugin writes the
-  // `proposals` array today (the librarian appends to `drops` only), so an
-  // unconditional line announced "0 proposals awaiting review" in every
-  // session — flatly contradicting this module's own contract above, and
-  // wrong besides: the instance had proposals open at the time.
+  // Omitted when empty: a machine with no librarian runs yet would
+  // otherwise announce "0 proposals awaiting review" every session.
   if (proposals.length > 0) {
     lines.push(
       `  ${proposals.length} proposal${proposals.length === 1 ? '' : 's'} awaiting review.`,

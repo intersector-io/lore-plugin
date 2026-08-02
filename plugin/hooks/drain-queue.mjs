@@ -23,6 +23,9 @@
  *                                park at MAX_ATTEMPTS
  *   retry                        reset every parked entry to queued
  *                                (attempts 0); prunes expired ones
+ *   status                       read-only {queued, parked} counts, with
+ *                                the same expiry rules the notification
+ *                                applies
  *
  * <token> is the entry's `claimedAt` exactly as printed by `claim`. It
  * makes transitions claim-specific: a slow drain whose claim expired and
@@ -180,6 +183,19 @@ function main() {
       );
       return;
     }
+    case 'status': {
+      // Read-only counts for anyone answering "what's waiting?" (e.g. the
+      // promotion skill's nothing-proposed-yet fallback). Counting raw
+      // JSONL lines is always wrong: done/draining rows and expired parks
+      // aren't pending — the same predicates render-pending.mjs applies.
+      const entries = readQueue(queuePathIn(home));
+      const queued = entries.filter((e) => e.status === 'queued').length;
+      const parked = entries.filter(
+        (e) => e.status === 'parked' && !terminalExpired(e, now),
+      ).length;
+      process.stdout.write(JSON.stringify({ queued, parked }) + '\n');
+      return;
+    }
     case 'retry': {
       const queuePath = queuePathIn(home);
       // An expired parked entry is pruned, never resurrected — it was no
@@ -198,7 +214,7 @@ function main() {
     }
   }
   process.stderr.write(
-    'usage: drain-queue.mjs claim | complete <sessionRef> <claimToken> | fail <sessionRef> <claimToken> [message] | retry\n',
+    'usage: drain-queue.mjs claim | complete <sessionRef> <claimToken> | fail <sessionRef> <claimToken> [message] | retry | status\n',
   );
   process.exitCode = 1;
 }
