@@ -52,6 +52,18 @@ export function briefPathIn(home) {
   return path.join(home, 'org-brief.json');
 }
 
+/**
+ * Capture pause marker (the capture-pause skill): while this file exists,
+ * enqueue-capture records nothing (a paused session is skipped, never
+ * deferred), drain-queue hands out no claims, and render-pending announces
+ * the pause instead of instructing a drain. The marker is the whole
+ * mechanism — `touch` to pause, `rm` to resume — so the paused state
+ * survives restarts and needs no network or API.
+ */
+export function pausePathIn(home) {
+  return path.join(home, 'capture-paused');
+}
+
 function normalizeEntry(entry) {
   return {
     ...entry,

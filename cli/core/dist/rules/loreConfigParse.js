@@ -1,4 +1,5 @@
 import { parse as parseYaml } from 'yaml';
+import { isNonEmptyString } from './fieldHelpers.js';
 /** Well-formed scope shapes (CONTEXT.md "Scope"): `org`, `product:<slug>`, `team:<slug>`. */
 const SCOPE_PATTERN = /^(org|product:[a-z0-9][a-z0-9-]*|team:[a-z0-9][a-z0-9-]*)$/;
 export function isWellFormedScope(value) {
@@ -21,21 +22,24 @@ function parseError(file, err) {
 export const CONFIG_FILE = '.lore/config.yml';
 const VALID_CLAIMS = new Set(['preferred_username', 'email']);
 const VALID_STRICTNESS = new Set(['warn', 'strict']);
+const IDENTITY_STRING_FIELDS = ['groupsClaim', 'rolesClaim', 'proposeRole', 'adminRole', 'reviewerRole'];
 /**
- * Parses `.lore/config.yml` (STS claim choice + identity-map strictness).
- * A missing file uses documented defaults (`preferred_username` / `warn`),
- * never an error — the file is optional (issue 0005 acceptance criteria).
+ * Parses `.lore/config.yml` (STS claim choice + identity-map strictness, and
+ * the identity/scope-mapping fields ADR-0002 requires core to be the one
+ * validator of — docs/issues/0125). A missing file uses documented defaults
+ * (`preferred_username` / `warn`), never an error — the file is optional
+ * (issue 0005 acceptance criteria).
  */
 export function parseConfigYml(raw) {
     if (raw === undefined) {
-        return { claim: 'preferred_username', strictness: 'warn', errors: [] };
+        return { strictness: 'warn', errors: [] };
     }
     let value;
     try {
         value = parseYaml(raw);
     }
     catch (err) {
-        return { claim: 'preferred_username', strictness: 'warn', errors: [parseError(CONFIG_FILE, err)] };
+        return { strictness: 'warn', errors: [parseError(CONFIG_FILE, err)] };
     }
     const errors = [];
     const obj = isPlainObject(value) ? value : {};
@@ -48,7 +52,7 @@ export function parseConfigYml(raw) {
             message: `${CONFIG_FILE} must be a YAML mapping, got ${Array.isArray(value) ? 'a list' : typeof value}.`,
         });
     }
-    let claim = 'preferred_username';
+    let claim;
     if ('claim' in obj) {
         if (typeof obj.claim === 'string' && VALID_CLAIMS.has(obj.claim)) {
             claim = obj.claim;
@@ -78,7 +82,58 @@ export function parseConfigYml(raw) {
             });
         }
     }
-    return { claim, strictness, errors };
+    // The five identity string fields (mirrors `resolveIdentityConfig`,
+    // apps/api/src/config.ts): non-empty, non-whitespace strings when present.
+    const stringFields = {};
+    for (const field of IDENTITY_STRING_FIELDS) {
+        if (!(field in obj))
+            continue;
+        const fieldValue = obj[field];
+        if (isNonEmptyString(fieldValue)) {
+            stringFields[field] = fieldValue;
+        }
+        else {
+            errors.push({
+                rule: 'config/parse',
+                severity: 'error',
+                file: CONFIG_FILE,
+                pointer: `/${field}`,
+                message: `\`${field}\` must be a non-empty string: got ${JSON.stringify(fieldValue)}.`,
+            });
+        }
+    }
+    let scopeClaimMap;
+    if ('scopeClaimMap' in obj) {
+        const rawMap = obj.scopeClaimMap;
+        if (isPlainObject(rawMap)) {
+            const map = {};
+            for (const [key, mapped] of Object.entries(rawMap)) {
+                if (isNonEmptyString(mapped)) {
+                    map[key] = mapped;
+                }
+                else {
+                    errors.push({
+                        rule: 'config/parse',
+                        severity: 'error',
+                        file: CONFIG_FILE,
+                        pointer: `/scopeClaimMap/${key}`,
+                        message: `value for key "${key}" must be a non-empty string: got ${JSON.stringify(mapped)}.`,
+                    });
+                }
+            }
+            scopeClaimMap = map;
+        }
+        else {
+            errors.push({
+                rule: 'config/parse',
+                severity: 'error',
+                file: CONFIG_FILE,
+                pointer: '/scopeClaimMap',
+                message: `\`scopeClaimMap\` must be an object: got ${JSON.stringify(rawMap)}.`,
+            });
+        }
+    }
+    return { claim, strictness, ...stringFields, scopeClaimMap, errors };
 }
 // ---- .lore/identities.yml ----------------------------------------------
 export const IDENTITIES_FILE = '.lore/identities.yml';

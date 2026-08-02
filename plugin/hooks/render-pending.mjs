@@ -37,6 +37,7 @@ import {
   briefPathIn,
   drainEligible,
   loreHome,
+  pausePathIn,
   queuePathIn,
   readQueue,
   terminalExpired,
@@ -153,6 +154,17 @@ export function renderNotification({ queueCount, parked, proposals, drops }) {
   return lines.join('\n');
 }
 
+/**
+ * Capture pause marker (see pausePathIn in lib/queue.mjs): announced on
+ * EVERY session start while it exists, so a pause can't be forgotten.
+ */
+export function renderPausedNotice(pausePath) {
+  return [
+    'lore: capture is paused — this session will not be captured, and queued captures will not drain.',
+    `  Resume with the capture-pause skill, or: rm "${pausePath}"`,
+  ].join('\n');
+}
+
 export function renderDrainInstruction() {
   return [
     'lore drain: captures are queued, and draining them is this session\'s job (docs/issues/0057).',
@@ -188,14 +200,22 @@ function main() {
   // notification announcing zeroes is noise on every single session start.
   const hasActivity =
     queued.length > 0 || parked.length > 0 || proposals.length > 0 || drops.length > 0;
-  const message = hasActivity
-    ? renderNotification({ queueCount: queued.length, parked, proposals, drops })
-    : null;
+  const pausePath = pausePathIn(home);
+  const paused = existsSync(pausePath);
+  const messageParts = [];
+  if (paused) messageParts.push(renderPausedNotice(pausePath));
+  if (hasActivity) {
+    messageParts.push(renderNotification({ queueCount: queued.length, parked, proposals, drops }));
+  }
+  const message = messageParts.length > 0 ? messageParts.join('\n') : null;
   const contextParts = message ? [message] : [];
   if (brief) contextParts.push(renderBrief(brief));
   // Only instruct a drain when a claim would actually hand something out —
-  // quiet-period entries (a possibly-live Codex session) don't count yet.
-  if (queue.some((e) => drainEligible(e, now))) contextParts.push(renderDrainInstruction());
+  // quiet-period entries (a possibly-live Codex session) don't count yet,
+  // and a paused queue hands out nothing at all.
+  if (!paused && queue.some((e) => drainEligible(e, now))) {
+    contextParts.push(renderDrainInstruction());
+  }
   const additionalContext = contextParts.join('\n\n');
 
   process.stdout.write(

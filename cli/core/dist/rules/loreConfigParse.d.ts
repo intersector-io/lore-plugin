@@ -2,14 +2,34 @@ import type { Diagnostic } from '../types.js';
 export declare function isWellFormedScope(value: unknown): value is string;
 export declare const CONFIG_FILE = ".lore/config.yml";
 export interface ParsedConfig {
-    claim: 'preferred_username' | 'email';
+    /**
+     * Set only when present in the file and valid — like every identity field
+     * below, absence is `undefined` so adapters' own default resolution stays
+     * in charge (`resolveIdentityConfig`, apps/api/src/config.ts). Rules that
+     * need the resolved default (`ownerUnmapped`) read `strictness`, not this.
+     */
+    claim?: 'preferred_username' | 'email';
     strictness: 'warn' | 'strict';
+    /** STS claim that carries groups (K2, PRD §8.4/R20). Undefined when absent from the file. */
+    groupsClaim?: string;
+    /** Scope grant map: STS group value -> Lore scope. Undefined when absent from the file. */
+    scopeClaimMap?: Record<string, string>;
+    /** STS claim that carries roles. Undefined when absent from the file. */
+    rolesClaim?: string;
+    /** Role name required to propose. Undefined when absent from the file. */
+    proposeRole?: string;
+    /** Role name required for admin surfaces. Undefined when absent from the file. */
+    adminRole?: string;
+    /** Role name required to review/approve. Undefined when absent from the file. */
+    reviewerRole?: string;
     errors: Diagnostic[];
 }
 /**
- * Parses `.lore/config.yml` (STS claim choice + identity-map strictness).
- * A missing file uses documented defaults (`preferred_username` / `warn`),
- * never an error — the file is optional (issue 0005 acceptance criteria).
+ * Parses `.lore/config.yml` (STS claim choice + identity-map strictness, and
+ * the identity/scope-mapping fields ADR-0002 requires core to be the one
+ * validator of — docs/issues/0125). A missing file uses documented defaults
+ * (`preferred_username` / `warn`), never an error — the file is optional
+ * (issue 0005 acceptance criteria).
  */
 export declare function parseConfigYml(raw: string | undefined): ParsedConfig;
 export declare const IDENTITIES_FILE = ".lore/identities.yml";

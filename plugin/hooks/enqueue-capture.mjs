@@ -21,8 +21,15 @@
  * mid-flight. Entries with no session id are never deduped (an unknown
  * stdin shape must still record sessions).
  */
-import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
-import { loreHome, queuePathIn, readQueue, transcriptMissing, writeQueue } from './lib/queue.mjs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import {
+  loreHome,
+  pausePathIn,
+  queuePathIn,
+  readQueue,
+  transcriptMissing,
+  writeQueue,
+} from './lib/queue.mjs';
 
 function readStdinJson() {
   if (process.stdin.isTTY) return {};
@@ -38,6 +45,8 @@ function readStdinJson() {
 function main() {
   const input = readStdinJson();
   const home = loreHome();
+  // Capture pause marker — see pausePathIn in lib/queue.mjs.
+  if (existsSync(pausePathIn(home))) return;
   mkdirSync(home, { recursive: true });
   const queuePath = queuePathIn(home);
   const sessionRef = input.session_id ?? null;

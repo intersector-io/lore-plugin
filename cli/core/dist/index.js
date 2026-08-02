@@ -16,7 +16,7 @@ export { findPii, findSecrets } from './rules/secretPatterns.js';
 export { validateCandidate } from './validateCandidate.js';
 export { getTypeAuthoringBundle, listTypeRecords } from './typeRecord.js';
 export { summarize } from './validate.js';
-export { parseGrantsYml, isWellFormedScope, GRANTS_FILE } from './rules/loreConfigParse.js';
+export { parseGrantsYml, isWellFormedScope, GRANTS_FILE, parseConfigYml, CONFIG_FILE } from './rules/loreConfigParse.js';
 export { validateGrantsYml, serializeGrantsYml } from './rules/grantsIntegrity.js';
 export { readLoreConfigFiles, hasAnyLoreConfig } from './loreConfigFiles.js';
 export { filesystemRecordSource } from './recordSource.js';

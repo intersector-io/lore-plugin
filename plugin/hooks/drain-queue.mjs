@@ -33,7 +33,7 @@
  * forgets nothing more than its own bookkeeping cannot wedge the queue —
  * and a crashed one is recovered by the next claim after STALE_CLAIM_MS.
  */
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import {
   DRAIN_BATCH_SIZE,
   MAX_ATTEMPTS,
@@ -43,6 +43,7 @@ import {
   lockIsFresh,
   lockPathIn,
   loreHome,
+  pausePathIn,
   queuePathIn,
   readLock,
   readQueue,
@@ -104,10 +105,16 @@ function claim(home, now) {
       }
       return e;
     });
-    const batch = entries
-      .filter((e) => drainEligible(e, now))
-      .sort((a, b) => entryTime(a) - entryTime(b))
-      .slice(0, DRAIN_BATCH_SIZE);
+    // Capture pause marker (see pausePathIn in lib/queue.mjs): gate only the
+    // hand-out — recovery, pruning, parking, and lock release still run, so
+    // a pause never freezes queue self-healing.
+    const paused = existsSync(pausePathIn(home));
+    const batch = paused
+      ? []
+      : entries
+          .filter((e) => drainEligible(e, now))
+          .sort((a, b) => entryTime(a) - entryTime(b))
+          .slice(0, DRAIN_BATCH_SIZE);
     for (const entry of batch) {
       entry.status = 'draining';
       entry.claimedAt = new Date(now).toISOString();

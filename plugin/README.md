@@ -57,6 +57,8 @@ stays at the plugin root:
   `lore-harvest`, run curated few-document extraction through the
   dedup-then-batch loop.
 - `skills/guide` — answer questions about lore itself from its own docs.
+- `skills/capture-pause` — pause/resume session capture on this machine via
+  the `${LORE_HOME:-~/.lore}/capture-paused` marker; retrieval is unaffected.
 - `skills/onboarding` — drive an admin through finishing a fresh deployment's
   rollout.
 - `agents/` — `librarian` (capture → dedupe → batch-propose) and
