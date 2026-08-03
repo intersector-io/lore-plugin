@@ -34,6 +34,13 @@ Whole-repo extraction is the harvester's job, not yours:
 lore-harvest harvest <repo> --scope <scope> --canonical <knowledge-repo>
 ```
 
+`--scope` stays explicit, but its value is not a guess when the repo
+declares one: check the harvested repo for a `.lore/scope.yml` scope marker
+(ADR-0023 — nearest to the harvested path wins) and pass that scope. If the
+operator names a different scope than the marker, flag the mismatch and let
+them decide — never silently pick either side. No marker means the operator
+chooses, as before.
+
 It runs a deterministic tier (ADR folders, OpenAPI specs, README structure)
 and a heuristic tier (docs trees, commit-message decision mining) before
 any LLM pass, and a **code tier**
@@ -65,6 +72,9 @@ yourself — running the **same loop the librarian subagent runs for session
 capture** (read `agents/librarian.md` in this plugin; only the source differs
 — candidates come from the documents or code the user named, not a queued
 transcript). In brief:
+the target scope comes from the scope marker nearest the named files
+(ADR-0023; you are in the tree, so read it yourself — no queue entry exists
+on this path), else from `whoami` + the user;
 `whoami()` once for the whole run; type each candidate via
 `create_record(type)` and its classification test; dedup each via
 `search_knowledge` with `include_drafts: true` to the four-verdict screen

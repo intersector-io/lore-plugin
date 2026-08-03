@@ -97,10 +97,22 @@ and say why in your run notes.
 
 ## 3. Dedup: search per candidate
 
+First fix the **session's scope** — it drives both the search below and the
+propose in step 4. The queue entry's `scope` field is the answer when it is
+non-null: the session-end hook resolved it from the working repo's committed
+`.lore/scope.yml` scope marker (ADR-0023, nearest marker to the `cwd` wins)
+at enqueue time, deterministically. A null `scope` means no marker: fall
+back to inferring the team/product from `cwd`, and your run notes must say
+the scope was inferred, not declared. A null `scope` accompanied by
+`markerMalformed: true` means the repo's `.lore/scope.yml` exists but does
+not parse — still infer, and *name the broken marker file* in your run
+notes: fixing that one file beats correcting every future proposal from
+that repo.
+
 For every candidate, before drafting anything:
 
 1. Call `search_knowledge` with a query describing the candidate, scoped
-   (`scope`) to the team/product this session's `cwd` belongs to, and
+   (`scope`) to the session's scope, and
    `limit` around 5 — hybrid search retrieves the top-k in-scope records.
    Include `include_drafts: true` — a candidate that duplicates
    something already sitting in the team's own open batch is exactly the
@@ -131,10 +143,13 @@ a librarian run stays inside the batch cadence (≤5 candidates or 7 days).
 candidate is proposed without `batch`. That is expected, not a rule you are
 breaking.
 
-Both the record's `scope` and the `batch` scope must be scopes you **hold**:
-take them from `whoami`'s `scopes`, never from its `readableScopes` and never
-from the scope you inferred off `cwd` alone. A scope you can only read (via a
-grant) is a 403 at propose time — after the entire candidate has been written.
+Both the record's `scope` and the `batch` scope must be in `whoami`'s
+`contribute` set — never merely in `readableScopes`: a scope you can only
+read (via a grant) is a 403 at propose time, after the entire candidate has
+been written. If the session's scope (marker-declared or inferred, step 3)
+is not in `contribute`, do not silently substitute another scope — park the
+candidates for that entry (fail the entry with a short reason) so the
+mismatch reaches the user instead of misplacing records.
 
 - **duplicate** — do **not** propose. There is currently no tool that
   writes directly onto an open batch PR's description (no

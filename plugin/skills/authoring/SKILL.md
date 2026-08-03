@@ -33,7 +33,18 @@ type only exist as of the current catalog, fetched live.
    - `canPropose: false` means stop: you can draft the record for the user,
      but you cannot open the PR yourself. Say so rather than failing at the
      last step.
-2. **`create_record(type)`** — never skip it, even if you've authored this
+2. **Resolve the scope from the marker, not from judgement.** If the repo
+   you're sitting in declares one (ADR-0023): walk up from the current
+   directory to the repository root and read the first `.lore/scope.yml`
+   found — its `scope:` key (`product:<slug>` or `team:<slug>`; `org` is
+   invalid in a marker) is the target scope. Nearest marker wins, so a
+   monorepo package's marker overrides the repo root's. Cross-check it
+   against `whoami`'s `contribute`: a marker naming a scope you cannot
+   contribute to is a mismatch to raise with the user — never silently
+   propose into a different scope instead. No marker (or a malformed one)
+   means you pick from `contribute` as before — tell the user which scope
+   you chose and that you inferred it.
+3. **`create_record(type)`** — never skip it, even if you've authored this
    type before. It returns the type's authoring template (frontmatter + body
    placeholders), its JSON Schema if it has extra fields, the required body
    section headings, the reviewer checklist, and the classification test that
@@ -41,23 +52,23 @@ type only exist as of the current catalog, fetched live.
    before you write a word — if what you're about to document doesn't clearly
    pass it, you may have the wrong type (e.g. a one-off Decision dressed up as
    an ADR, or vice versa).
-3. **Fill the template.** Write real content into every placeholder. Leave
+4. **Fill the template.** Write real content into every placeholder. Leave
    nothing generic — a reviewer checklist item you didn't actually satisfy
    is worse than an honest gap, because it looks satisfied at a glance.
    Leave the record's id blank exactly as the template ships it: the ULID is
    assigned when you propose, `validate_record` treats an absent id as the
    expected shape, and `propose_record` overwrites anything you put there.
-4. **`validate_record(type, content, scope)`** — validate before you propose,
-   every time, passing the `scope` you chose from `whoami`'s `contribute`: without
+5. **`validate_record(type, content, scope)`** — validate before you propose,
+   every time, passing the `scope` you resolved in step 2: without
    it, placement and ULID-uniqueness checks are skipped and you'll get a
    warning explaining why, not a clean bill of health.
-5. **Read the diagnostics and fix, don't guess.** Each diagnostic carries
+6. **Read the diagnostics and fix, don't guess.** Each diagnostic carries
    `{rule, severity, file, pointer, message}` — the `pointer` tells you
    exactly where in the content the problem is. Fix what it names, not what
    you assume it means; re-run `validate_record` after every fix. Loop until
    the errors list is empty. Warnings don't block proposing but read them —
    they're often about to become a reviewer's first comment.
-6. **`propose_record(type, content, scope)`** — only once validation is
+7. **`propose_record(type, content, scope)`** — only once validation is
    clean. This is the same validation engine as CI, so a clean
    `validate_record` result means the proposal will validate clean once
    promoted too — but propose_record still re-validates and refuses to write

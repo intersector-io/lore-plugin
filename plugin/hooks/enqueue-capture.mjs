@@ -22,6 +22,7 @@
  * stdin shape must still record sessions).
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { resolveScopeMarker } from './lib/scope-marker.mjs';
 import {
   loreHome,
   pausePathIn,
@@ -71,11 +72,22 @@ function main() {
   if (typeof input.transcript_path === 'string' && transcriptMissing(input.transcript_path)) {
     return;
   }
+  // Scope marker (ADR-0023): resolved here, at enqueue time, so the
+  // librarian gets a deterministic answer instead of re-deriving one from
+  // `cwd` later — the checkout may have moved on by drain time. Scope null
+  // means "no marker": the librarian infers and says so. A marker that
+  // exists but doesn't parse also yields scope null, flagged
+  // `markerMalformed` so the librarian can name the broken file instead of
+  // just "inferred" — this hook is failure-silent and cannot warn anyone
+  // itself.
+  const marker = resolveScopeMarker(input.cwd ?? null);
   const entry = {
     ts: new Date().toISOString(),
     sessionRef,
     transcriptPath: input.transcript_path ?? null,
     cwd: input.cwd ?? null,
+    scope: marker?.scope ?? null,
+    ...(marker?.malformed ? { markerMalformed: true } : {}),
     event: input.hook_event_name ?? null,
     status: 'queued',
     attempts: 0,

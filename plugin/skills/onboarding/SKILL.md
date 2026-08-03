@@ -75,6 +75,14 @@ Don't launch over an empty knowledge base — and don't blindly seed either:
 Seeding produces **proposals, not canon**. Tell the human where review
 happens (the portal) and who holds approve for each batch.
 
+Alongside seeding, have each team bind its working repositories to their
+scope: one committed `.lore/scope.yml` per repo (`scope: team:<slug>` or
+`product:<slug>` — ADR-0023), a one-line PR reviewed by the repo's own
+owners. That marker is what makes every later capture and authoring session
+land in the right scope deterministically instead of by per-session
+inference — at rollout scale, skipping it is how misplaced proposals flood
+reviewers.
+
 ## Step 4 — One record end to end
 
 Before declaring the rollout done, run a single record through the entire
