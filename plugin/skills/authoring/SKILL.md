@@ -43,7 +43,11 @@ type only exist as of the current catalog, fetched live.
    contribute to is a mismatch to raise with the user — never silently
    propose into a different scope instead. No marker (or a malformed one)
    means you pick from `contribute` as before — tell the user which scope
-   you chose and that you inferred it.
+   you chose and that you inferred it, and **offer to create the marker** so
+   the next session doesn't re-infer: a committed `.lore/scope.yml` at the
+   repo root containing one line, `scope: <the scope you settled on>`. Only
+   with the user's yes — it's a committed file the repo's owners review —
+   and never for an `org` scope, which is invalid in a marker.
 3. **`create_record(type)`** — never skip it, even if you've authored this
    type before. It returns the type's authoring template (frontmatter + body
    placeholders), its JSON Schema if it has extra fields, the required body
