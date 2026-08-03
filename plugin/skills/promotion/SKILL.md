@@ -56,13 +56,14 @@ Session capture is asynchronous: the session-end hook only *enqueues* a
 reference, and the librarian extracts and proposes on a later drain. So the
 **current session has contributed nothing yet** — say so; what exists now
 came from previous sessions, recorded by librarian runs in
-`${LORE_HOME:-~/.lore}/pending-proposals.json` (`proposals` opened and
-duplicate `drops`, shapes owned by this plugin's
+`${LORE_HOME:-~/.lore}/pending-proposals.json` (`proposals` opened,
+duplicate `drops`, and `parked` candidates whose scope wasn't
+contributable — docs/issues/0127; shapes owned by this plugin's
 `hooks/pending-proposals.mjs`).
 
 To answer:
 
-1. Read the file. If both arrays are empty (or it's absent), nothing has
+1. Read the file. If all arrays are empty (or it's absent), nothing has
    been proposed from this machine yet — explain "nothing" with the capture
    queue state: run this plugin's `hooks/drain-queue.mjs status` for the
    queued/parked counts. Never count raw `capture-queue.jsonl` lines

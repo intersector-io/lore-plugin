@@ -73,8 +73,12 @@ function main() {
     return;
   }
   // Scope marker (ADR-0023): resolved here, at enqueue time, so the
-  // librarian gets a deterministic answer instead of re-deriving one from
-  // `cwd` later — the checkout may have moved on by drain time. Scope null
+  // librarian gets a deterministic answer for the CWD repo instead of
+  // re-deriving one later — the checkout may have moved on by drain time.
+  // Only cwd: this hook never reads the transcript, so candidates from
+  // OTHER repos a multi-repo session touched are scoped at drain time by
+  // the librarian via resolve-scope.mjs, accepting that staleness hazard
+  // for repos the hook cannot see (docs/issues/0127). Scope null
   // means "no marker": the librarian infers and says so. A marker that
   // exists but doesn't parse also yields scope null, flagged
   // `markerMalformed` so the librarian can name the broken file instead of

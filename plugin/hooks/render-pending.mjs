@@ -13,7 +13,7 @@
  * Reads `${LORE_HOME:-~/.lore}/capture-queue.jsonl` (one JSON object per
  * line, written by enqueue-capture.mjs, drained via drain-queue.mjs) and
  * `${LORE_HOME:-~/.lore}/pending-proposals.json` (`{ proposals: [...],
- * drops: [...] }`, written by librarian runs — see
+ * drops: [...], parked: [...] }`, written by librarian runs — see
  * plugin/agents/librarian.md). Prints a SessionStart hook JSON payload to
  * stdout: `systemMessage` is the human-facing summary; `additionalContext`
  * additionally carries the cached org brief (docs/issues/0059, from
@@ -95,18 +95,22 @@ export function renderBrief(brief) {
 }
 
 function readProposalsState(statePath) {
-  if (!existsSync(statePath)) return { proposals: [], drops: [] };
+  if (!existsSync(statePath)) return { proposals: [], drops: [], parkedCandidates: [] };
   try {
     const raw = JSON.parse(readFileSync(statePath, 'utf8'));
     const objects = (list) =>
       Array.isArray(list) ? list.filter((x) => x !== null && typeof x === 'object') : [];
-    return { proposals: objects(raw.proposals), drops: objects(raw.drops) };
+    return {
+      proposals: objects(raw.proposals),
+      drops: objects(raw.drops),
+      parkedCandidates: objects(raw.parked),
+    };
   } catch {
-    return { proposals: [], drops: [] };
+    return { proposals: [], drops: [], parkedCandidates: [] };
   }
 }
 
-export function renderNotification({ queueCount, parked, proposals, drops }) {
+export function renderNotification({ queueCount, parked, proposals, drops, parkedCandidates = [] }) {
   const lines = [];
   lines.push('lore: pending capture activity');
   lines.push(
@@ -146,6 +150,20 @@ export function renderNotification({ queueCount, parked, proposals, drops }) {
       const matched = clean(d.matchedUlid ?? '(unknown)', 40);
       const reason = d.reason ? `: ${clean(d.reason, 200)}` : '';
       lines.push(`    - "${summary}" matched ${matched}${reason}`);
+    }
+  }
+  // Contribute-mismatched candidates (docs/issues/0127): captured but never
+  // proposed — a permissions/marker problem only a human can fix, so it must
+  // surface here rather than living only in a librarian run's transient notes.
+  if (parkedCandidates.length > 0) {
+    lines.push(
+      `  ${parkedCandidates.length} candidate${parkedCandidates.length === 1 ? '' : 's'} parked — scope not in your contribute set (fix the access matrix or the repo's .lore/scope.yml):`,
+    );
+    for (const p of parkedCandidates) {
+      const summary = clean(p.candidateSummary ?? '(no summary)', 200);
+      const scope = clean(p.scope ?? '(unknown scope)', 60);
+      const reason = p.reason ? `: ${clean(p.reason, 200)}` : '';
+      lines.push(`    - "${summary}" → ${scope}${reason}`);
     }
   }
   return lines.join('\n');
@@ -191,18 +209,24 @@ function main() {
   // read-only; the next claim prunes them. Without this, a parked-only queue
   // (which never triggers a claim) would nag forever (docs/issues/0124).
   const parked = queue.filter((e) => e.status === 'parked' && !terminalExpired(e, now));
-  const { proposals, drops } = readProposalsState(statePath);
+  const { proposals, drops, parkedCandidates } = readProposalsState(statePath);
   const brief = readBrief(briefPathIn(home));
   // Nothing waiting on this team ⇒ say nothing at all (docs/issues/0091). A
   // notification announcing zeroes is noise on every single session start.
   const hasActivity =
-    queued.length > 0 || parked.length > 0 || proposals.length > 0 || drops.length > 0;
+    queued.length > 0 ||
+    parked.length > 0 ||
+    proposals.length > 0 ||
+    drops.length > 0 ||
+    parkedCandidates.length > 0;
   const pausePath = pausePathIn(home);
   const paused = existsSync(pausePath);
   const messageParts = [];
   if (paused) messageParts.push(renderPausedNotice(pausePath));
   if (hasActivity) {
-    messageParts.push(renderNotification({ queueCount: queued.length, parked, proposals, drops }));
+    messageParts.push(
+      renderNotification({ queueCount: queued.length, parked, proposals, drops, parkedCandidates }),
+    );
   }
   const message = messageParts.length > 0 ? messageParts.join('\n') : null;
   const contextParts = message ? [message] : [];

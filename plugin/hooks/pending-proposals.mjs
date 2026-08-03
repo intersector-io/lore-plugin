@@ -12,11 +12,15 @@
  * hook, so like drain-queue.mjs it rejects bad input loudly with a
  * non-zero exit.
  *
- *   record   stdin `{"proposals": [...], "drops": [...]}` (either array may
- *            be absent) — validate shape, stamp each entry with `ts`, append
- *            both arrays in one atomic write. One call per librarian run.
- *            Proposals: {ulid, type, scope, summary, ref}; drops:
- *            {candidateSummary, matchedUlid, reason?, matchedDraft?}.
+ *   record   stdin `{"proposals": [...], "drops": [...], "parked": [...]}`
+ *            (any array may be absent) — validate shape, stamp each entry
+ *            with `ts`, append all arrays in one atomic write. One call per
+ *            librarian run. Proposals: {ulid, type, scope, summary, ref};
+ *            drops: {candidateSummary, matchedUlid, reason?, matchedDraft?};
+ *            parked (docs/issues/0127 — candidates whose scope is outside
+ *            `contribute`, so nothing was proposed): {candidateSummary,
+ *            scope, reason?}. Parked entries never touch recurrence.jsonl —
+ *            a permissions mismatch is not a recall failure.
  *   prune    stdin `{"ulids": [...]}` — remove proposals entries whose ulid
  *            is listed (decided ones, confirmed via get_proposal).
  *   recurrence  no stdin — aggregate recurrence.jsonl (docs/issues/0126),
@@ -55,14 +59,14 @@ function fail(message) {
 }
 
 function readState(statePath) {
-  if (!existsSync(statePath)) return { proposals: [], drops: [] };
+  if (!existsSync(statePath)) return { proposals: [], drops: [], parked: [] };
   try {
     const raw = JSON.parse(readFileSync(statePath, 'utf8'));
     const objects = (list) =>
       Array.isArray(list) ? list.filter((x) => x !== null && typeof x === 'object') : [];
-    return { proposals: objects(raw.proposals), drops: objects(raw.drops) };
+    return { proposals: objects(raw.proposals), drops: objects(raw.drops), parked: objects(raw.parked) };
   } catch {
-    return { proposals: [], drops: [] };
+    return { proposals: [], drops: [], parked: [] };
   }
 }
 
@@ -89,6 +93,15 @@ function validateProposal(p) {
   return { ulid: p.ulid, type: p.type, scope: p.scope, summary: p.summary, ref: p.ref };
 }
 
+function validateParked(p) {
+  if (!nonEmptyString(p?.candidateSummary) || !nonEmptyString(p?.scope)) {
+    fail('every parked entry needs non-empty string candidateSummary/scope');
+  }
+  const parked = { candidateSummary: p.candidateSummary, scope: p.scope };
+  if (nonEmptyString(p.reason)) parked.reason = p.reason;
+  return parked;
+}
+
 function validateDrop(d) {
   if (!nonEmptyString(d?.candidateSummary) || !nonEmptyString(d?.matchedUlid)) {
     fail('every drop needs non-empty string candidateSummary/matchedUlid');
@@ -104,6 +117,9 @@ function validateDrop(d) {
 
 function write(statePath, state, now) {
   state.drops = state.drops.filter((d) => now - entryTime(d) < TERMINAL_RETENTION_MS);
+  // Parked candidates are terminal bookkeeping too (docs/issues/0124): the
+  // fix is a matrix/marker change, not a retry, so they age out the same way.
+  state.parked = state.parked.filter((p) => now - entryTime(p) < TERMINAL_RETENTION_MS);
   atomicReplace(statePath, JSON.stringify(state, null, 2) + '\n');
 }
 
@@ -126,6 +142,10 @@ function main() {
         ...validateDrop(d),
         ts,
       }));
+      const parked = (Array.isArray(input.parked) ? input.parked : []).map((p) => ({
+        ...validateParked(p),
+        ts,
+      }));
       // Append the durable log BEFORE the state write: if the append fails,
       // nothing is recorded anywhere and the loud exit makes the librarian
       // retry cleanly. Known, accepted gap (the writeQueue rule): a state
@@ -141,6 +161,7 @@ function main() {
       const state = readState(statePath);
       state.proposals.push(...proposals);
       state.drops.push(...drops);
+      state.parked.push(...parked);
       write(statePath, state, now);
       return;
     }

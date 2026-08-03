@@ -21,6 +21,14 @@ typed candidates, screen each one against the canonical index, and act on
 the verdict. You never invent a ULID, a type slug, or a schema field — every
 one of those comes from a tool call, not from memory of a past catalog.
 
+Wherever these instructions say `<hooks dir>`, that is this plugin's own
+`hooks/` directory — `${CLAUDE_PLUGIN_ROOT}/hooks` in Claude Code, and the
+directory containing the `drain-queue.mjs` path the session-start drain
+instruction prints. Invoked directly (by a human or the harvester) with no
+drain instruction in sight, locate it before step 3 — find the installed
+plugin's `hooks/drain-queue.mjs` — rather than skipping the scripts or
+re-implementing them.
+
 ## 0. Drain protocol (when invoked by the SessionStart drain)
 
 When you were launched by the session-start drain instruction
@@ -80,6 +88,11 @@ entry you drained.
   You're looking for decisions made, constraints discovered, processes
   established, or corrections given — not a summary of everything that
   happened.
+- One session is not always one repo: a vertical-slice delivery touches two
+  or more working repos in the same session. If the transcript shows work in
+  repos other than `cwd`, read their diffs too — and remember which repo
+  each candidate came from; step 3 scopes candidates by their source repo
+  (docs/issues/0127).
 - Be conservative about what counts as a candidate. A session that shipped a
   bugfix with no reusable decision behind it produces zero candidates — that
   is a correct, expected outcome, not a failure to try harder.
@@ -97,22 +110,38 @@ and say why in your run notes.
 
 ## 3. Dedup: search per candidate
 
-First fix the **session's scope** — it drives both the search below and the
-propose in step 4. The queue entry's `scope` field is the answer when it is
-non-null: the session-end hook resolved it from the working repo's committed
-`.lore/scope.yml` scope marker (ADR-0023, nearest marker to the `cwd` wins)
-at enqueue time, deterministically. A null `scope` means no marker: fall
-back to inferring the team/product from `cwd`, and your run notes must say
-the scope was inferred, not declared. A null `scope` accompanied by
-`markerMalformed: true` means the repo's `.lore/scope.yml` exists but does
-not parse — still infer, and *name the broken marker file* in your run
-notes: fixing that one file beats correcting every future proposal from
-that repo.
+First fix each candidate's **scope** — it drives both the search below and
+the propose in step 4. For candidates from the `cwd` repo, the queue entry's
+`scope` field is the answer when it is non-null: the session-end hook
+resolved it from that repo's committed `.lore/scope.yml` scope marker
+(ADR-0023, nearest marker to the `cwd` wins) at enqueue time,
+deterministically. For a candidate whose source repo is **not** the `cwd`
+repo (step 1), the entry's scope does not apply — resolve that repo's own
+marker with the same algorithm the hook uses (docs/issues/0127):
+`node "<hooks dir>/resolve-scope.mjs" <candidate's source directory>`
+prints `{"scope": ..., "malformed": ...}` or `null`, exactly the
+nearest-marker-wins walk the enqueue hook ran for `cwd` — never
+re-implement the walk yourself. Never scope a candidate by another repo's
+marker.
+
+A null scope is ambiguous — check the source directory still exists before
+reading it as "no marker": `resolve-scope.mjs` prints `null` for a deleted
+or moved checkout too (a worktree removed between session end and drain),
+and that case is "source checkout missing", which your run notes must say
+in those words — never "no marker" for a repo that may well declare one.
+With the directory present, null means no marker: fall back to inferring
+the team/product from the candidate's source repo, and your run notes must
+say — per candidate — that the scope was inferred, not declared. A
+malformed marker (the entry's `markerMalformed: true`, or
+`"malformed": true` from `resolve-scope.mjs` — the same signal) means the
+repo's `.lore/scope.yml` exists but does not parse — still infer, and
+*name the broken marker file* in your run notes: fixing that one file
+beats correcting every future proposal from that repo.
 
 For every candidate, before drafting anything:
 
 1. Call `search_knowledge` with a query describing the candidate, scoped
-   (`scope`) to the session's scope, and
+   (`scope`) to the candidate's scope, and
    `limit` around 5 — hybrid search retrieves the top-k in-scope records.
    Include `include_drafts: true` — a candidate that duplicates
    something already sitting in the team's own open batch is exactly the
@@ -135,9 +164,11 @@ what turns the batch proposal from signal into noise.
 Every write in this loop goes through the authoring loop
 (`validate_record` until clean, every time) and lands on the team's rolling
 batch, never a one-off branch: pass `batch: "team:<slug>"` (or
-`product:<slug>` if that's the session's actual scope) to `propose_record`.
+`product:<slug>` if that's the candidate's actual scope) to `propose_record`.
 From this agent, always pass `batch` when the scope allows one — that is how
 a librarian run stays inside the batch cadence (≤5 candidates or 7 days).
+A multi-repo session lands candidates on more than one rolling batch — one
+per scope — which is the cadence working, not a violation of it.
 **The one exception is `org`:** the server refuses `batch: "org"` outright
 (`batch must be "team:<slug>" or "product:<slug>"`), so an org-scope
 candidate is proposed without `batch`. That is expected, not a rule you are
@@ -146,10 +177,14 @@ breaking.
 Both the record's `scope` and the `batch` scope must be in `whoami`'s
 `contribute` set — never merely in `readableScopes`: a scope you can only
 read (via a grant) is a 403 at propose time, after the entire candidate has
-been written. If the session's scope (marker-declared or inferred, step 3)
-is not in `contribute`, do not silently substitute another scope — park the
-candidates for that entry (fail the entry with a short reason) so the
-mismatch reaches the user instead of misplacing records.
+been written. If a candidate's scope (marker-declared or inferred, step 3)
+is not in `contribute`, do not silently substitute another scope — park
+that candidate: name it, with its blocked scope, in your run notes AND in
+the step-5 write's `parked` array, which is what actually reaches the user
+at the next session start. When that leaves the entry with nothing
+proposable at all, fail the entry — and say in the reason that the
+mismatch is a permissions/marker problem a retry cannot fix, so nobody
+burns drain attempts expecting one to.
 
 - **duplicate** — do **not** propose. There is currently no tool that
   writes directly onto an open batch PR's description (no
@@ -205,11 +240,14 @@ script, exactly like the capture queue and `drain-queue.mjs`:
 echo '{"proposals": [{"ulid": "...", "type": "...", "scope": "...",
   "summary": "<record title>", "ref": "<pr.ref>"}, ...],
   "drops": [{"candidateSummary": "...", "matchedUlid": "...",
+  "reason": "..."}, ...],
+  "parked": [{"candidateSummary": "...", "scope": "<blocked scope>",
   "reason": "..."}, ...]}' | node "<hooks dir>/pending-proposals.mjs" record
 ```
 
 One `proposals` entry per record you proposed, one `drops` entry per
-duplicate you dropped; either array may be empty. Every field comes from
+duplicate you dropped, one `parked` entry per contribute-mismatched
+candidate (step 4); any array may be empty. Every field comes from
 this run's tool results. This state is what the session-start hook renders
 and what the promotion skill answers "what did my sessions contribute?"
 from. Drops also feed the durable recurrence log automatically
