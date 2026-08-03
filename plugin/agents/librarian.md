@@ -141,7 +141,11 @@ grant) is a 403 at propose time — after the entire candidate has been written.
   "comment on this PR" surface exists yet on the MCP tool list), so the
   audit trail for a drop lives in this run's local state instead: note
   `{candidateSummary, matchedUlid, reason}` for the end-of-run write
-  (step 5). The session-start hook (`render-pending.mjs`) surfaces drops
+  (step 5) — and add `matchedDraft: true` when the matched hit was a
+  draft (an open proposal, not canon). That distinction feeds the
+  recurrence metric (docs/issues/0126): a canon match means the record
+  failed to prevent its mistake recurring; a draft match is just the
+  batch-flood prevention working. The session-start hook (`render-pending.mjs`) surfaces drops
   from that state at the next session start, so the decision is visible even
   though it isn't literally in the PR body. Treat this as a known gap versus
   the PRD's "logged in the batch PR" language, not a silent omission — say
@@ -193,7 +197,9 @@ One `proposals` entry per record you proposed, one `drops` entry per
 duplicate you dropped; either array may be empty. Every field comes from
 this run's tool results. This state is what the session-start hook renders
 and what the promotion skill answers "what did my sessions contribute?"
-from.
+from. Drops also feed the durable recurrence log automatically
+(docs/issues/0126), so never under-report them — and never omit
+`matchedDraft: true` on a draft match, or the metric overcounts.
 
 ## Guardrails
 

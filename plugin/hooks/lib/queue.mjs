@@ -72,20 +72,29 @@ function normalizeEntry(entry) {
   };
 }
 
-export function readQueue(queuePath) {
-  if (!existsSync(queuePath)) return [];
-  const raw = readFileSync(queuePath, 'utf8');
+/**
+ * Tolerant JSONL reader shared by the queue and the recurrence log
+ * (docs/issues/0126): skips blank and malformed lines rather than failing —
+ * hook callers are failure-silent, and agent-facing callers degrade to
+ * "fewer entries" instead of a dead command.
+ */
+export function readJsonl(filePath) {
+  if (!existsSync(filePath)) return [];
   const entries = [];
-  for (const line of raw.split('\n')) {
+  for (const line of readFileSync(filePath, 'utf8').split('\n')) {
     const trimmed = line.trim();
     if (!trimmed) continue;
     try {
-      entries.push(normalizeEntry(JSON.parse(trimmed)));
+      entries.push(JSON.parse(trimmed));
     } catch {
       // Skip a malformed line rather than fail the caller.
     }
   }
   return entries;
+}
+
+export function readQueue(queuePath) {
+  return readJsonl(queuePath).map(normalizeEntry);
 }
 
 /**

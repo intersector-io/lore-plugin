@@ -5,8 +5,10 @@ description: |
   writing a plan that touches org/product/team process, policy, or prior decisions. Use
   this whenever you are about to propose an approach, choose between alternatives, or
   claim something is "the standard" — search first, cite what you find, and don't
-  invent constraints that already have an answer on record. Also use when a user asks
-  "what does Lore say about X" or "has this been decided before".
+  invent constraints that already have an answer on record. ALSO before editing code
+  or config in a subsystem you have not searched canon for this session — even for an
+  obvious one-liner. Also use when a user asks "what does Lore say about X" or "has
+  this been decided before".
 ---
 
 # Retrieval
@@ -43,6 +45,18 @@ the point.
 5. If nothing turns up, broaden the query or drop a filter before concluding
    "Lore has nothing on this" — a single narrow search that returns zero
    results is weak evidence of absence. Try at least one rephrase.
+
+## Before editing unfamiliar territory
+
+The retrieval habit is not only for design work. Teams capture corrections
+and pitfalls as records ("refs reissued after restart", "this endpoint 500s
+on empty arrays"), and those records are titled by *root cause*, not by file
+name — so before modifying code or config in an area you haven't searched
+this session, run one `search_knowledge` query describing the subsystem and
+the behavior you're about to change, not the file path. A change that looks
+like an obvious one-liner is the highest-risk case, not an exemption: it's
+precisely the edit nobody deliberates about, which is how a captured
+mistake gets remade.
 
 ## include_drafts caution
 
