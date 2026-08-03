@@ -1,0 +1,32 @@
+# Review routing by scope/type (docs/issues/0020, PRD.md R24: "CODEOWNERS
+# routes reviews by scope/type"). Standard GitHub/GitLab CODEOWNERS syntax:
+# later patterns win over earlier ones on overlapping paths, so the general
+# org-tier rule sits first and the more specific type/config rules sit after
+# it. This file is NOT a record (packages/core/src/discoverRecords.ts only
+# discovers `.md` files under org/, products/<slug>/, teams/<slug>/) — it
+# never enters the catalog and `lore validate` never inspects it; it only
+# configures the git host's PR review requirement. See README.md
+# "`.lore/` configuration" / "Review routing" for the full convention.
+
+# Org-tier records (org/*, excluding org/type/ below) default to the
+# architecture group — org-scope knowledge is cross-cutting by definition.
+/org/**                        @architecture
+
+# The type catalog (org/type/) and Lore's own deployment configuration
+# (.lore/) are platform-level surfaces: changing what counts as a valid
+# record type, or the identity/grant model itself, is a platform change
+# regardless of which scope's contributor opened the PR.
+/org/type/**                   @platform-maintainers
+/.lore/**                      @platform-maintainers
+/CODEOWNERS                    @platform-maintainers
+
+# Product-tier records route to that product's own reviewers. Placeholder
+# alias pattern below — add one line per product as products/ grows, replacing
+# <product-slug> with the real directory name (e.g. products/acme/**).
+# /products/<product-slug>/**  @product-<product-slug>-team
+/products/acme/**               @product-acme-team
+
+# Team-tier records route to that team's own reviewers. Placeholder alias
+# pattern below — add one line per team as teams/ grows, replacing <team-slug>
+# with the real directory name (e.g. teams/platform/**).
+# /teams/<team-slug>/**        @team-<team-slug>

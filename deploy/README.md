@@ -16,6 +16,33 @@ You get two things from lore:
 The Claude Code plugin and the `template/` canon scaffold come from the same
 public mirror — see "Start your canonical repository" below.
 
+## Quick try — five minutes, no install decisions
+
+Want to see lore working before configuring anything? One command stands the
+whole stack up on your machine over the bundled fictional **Acme Commerce**
+demo seed (`demo/` in this directory) and prints the portal URL plus the
+measured time to first search. You need Docker running, git, Node ≥ 22, and
+your registry credential:
+
+```sh
+docker login registry.gitlab.com -u <your-customer-username> -p <your-pull-token>
+node try-lore.mjs
+```
+
+It pulls the images (never builds), keeps everything under the `lore-try`
+compose project and a `.try/` scratch directory — so it can't touch a real
+install living in this same directory — and prints the exact teardown line
+when it's done. Register the first account in the portal it prints (the first
+user becomes the admin), then follow the guided tour at
+`http://localhost:<port>/docs/guided-demo/` from Part 2.
+
+`LORE_IMAGE_REGISTRY` / `LORE_IMAGE_TAG` override the image prefix and tag;
+`--project` / `--port` re-pin the namespace; `--reuse` keeps an existing seed
+checkout.
+
+Everything below is the real install path — the same images, pointed at your
+own canonical repo and identity provider.
+
 ## 1. Log in to the registry
 
 ```sh

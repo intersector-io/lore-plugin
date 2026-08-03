@@ -12,8 +12,10 @@ This repository distributes four things to licensed deployments:
   repository: the type catalog, config, grants, and CI validation workflow.
 - **`deploy/`** — the clone-free server bundle: a `docker-compose.yml` that
   pulls the `lore-api` / `lore-indexer` container images plus the env samples to
-  run them. Pulling the images needs your per-customer **registry credential —
-  the license artifact**; the compose file and samples themselves are public.
+  run them, and a **one-command quick try** (`node deploy/try-lore.mjs`) that
+  stands the whole stack up over the bundled demo seed. Pulling the images
+  needs your per-customer **registry credential — the license artifact**; the
+  compose file, samples and demo seed themselves are public.
   See `deploy/README.md`.
 - **`cli/`** — the `lore` CLI, prebuilt: the validation engine your canonical
   repo's CI runs, with `@lore/core` bundled as a local dependency. Install it

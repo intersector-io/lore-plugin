@@ -1,0 +1,11 @@
+# Scope grants (CONTEXT.md "Grant", PRD.md §8.8 R35): make one scope's
+# canonical records readable to principals holding another scope. Scope-level
+# only — no per-record grants. Grants never include drafts.
+#
+# The demo seed ships one grant so the portal's grants viewer and the
+# grant-value metric have something real to show: the platform team can read
+# everything under product:acme.
+
+grants:
+  - from: product:acme
+    to: team:platform
