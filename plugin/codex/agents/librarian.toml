@@ -90,7 +90,7 @@ entry you drained.
   or more working repos in the same session. If the transcript shows work in
   repos other than `cwd`, read their diffs too — and remember which repo
   each candidate came from; step 3 scopes candidates by their source repo
-  (docs/issues/0127).
+  (docs/issues/0128).
 - Be conservative about what counts as a candidate. A session that shipped a
   bugfix with no reusable decision behind it produces zero candidates — that
   is a correct, expected outcome, not a failure to try harder.
@@ -115,7 +115,7 @@ resolved it from that repo's committed `.lore/scope.yml` scope marker
 (ADR-0023, nearest marker to the `cwd` wins) at enqueue time,
 deterministically. For a candidate whose source repo is **not** the `cwd`
 repo (step 1), the entry's scope does not apply — resolve that repo's own
-marker with the same algorithm the hook uses (docs/issues/0127):
+marker with the same algorithm the hook uses (docs/issues/0128):
 `node "<hooks dir>/resolve-scope.mjs" <candidate's source directory>`
 prints `{"scope": ..., "malformed": ...}` or `null`, exactly the
 nearest-marker-wins walk the enqueue hook ran for `cwd` — never

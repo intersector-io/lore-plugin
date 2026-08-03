@@ -78,7 +78,7 @@ function main() {
   // Only cwd: this hook never reads the transcript, so candidates from
   // OTHER repos a multi-repo session touched are scoped at drain time by
   // the librarian via resolve-scope.mjs, accepting that staleness hazard
-  // for repos the hook cannot see (docs/issues/0127). Scope null
+  // for repos the hook cannot see (docs/issues/0128). Scope null
   // means "no marker": the librarian infers and says so. A marker that
   // exists but doesn't parse also yields scope null, flagged
   // `markerMalformed` so the librarian can name the broken file instead of

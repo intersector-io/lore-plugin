@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Scope-marker resolver CLI (docs/issues/0127): the librarian resolves a
+ * Scope-marker resolver CLI (docs/issues/0128): the librarian resolves a
  * candidate's scope from its source repo's own `.lore/scope.yml`, and this
  * wrapper is how it runs the SAME algorithm the session-end hook uses
  * (lib/scope-marker.mjs — nearest-marker-wins, `.git` boundary, malformed

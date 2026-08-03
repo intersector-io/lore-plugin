@@ -17,7 +17,7 @@
  *            with `ts`, append all arrays in one atomic write. One call per
  *            librarian run. Proposals: {ulid, type, scope, summary, ref};
  *            drops: {candidateSummary, matchedUlid, reason?, matchedDraft?};
- *            parked (docs/issues/0127 — candidates whose scope is outside
+ *            parked (docs/issues/0128 — candidates whose scope is outside
  *            `contribute`, so nothing was proposed): {candidateSummary,
  *            scope, reason?}. Parked entries never touch recurrence.jsonl —
  *            a permissions mismatch is not a recall failure.

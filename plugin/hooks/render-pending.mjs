@@ -23,6 +23,19 @@
  * never because it was surfaced here. Always exits 0: no network, no LLM
  * call, every failure mode is swallowed silently.
  *
+ * The drain instruction text (renderDrainInstruction) is deliberately framed
+ * so the drain can never eclipse the answer to the user's actual request: a
+ * headless `claude -p` run only ever prints the session's FINAL message, so
+ * an agent that dutifully drains "after handling the request" and then
+ * reports the drain outcome last has just swallowed its own answer (observed
+ * twice in headless/CI runs). There is no reliable signal available to this
+ * hook — env or stdin — that distinguishes a headless invocation from an
+ * interactive one (SessionStart's stdin carries no such flag, and nothing in
+ * this process's env is documented as one), so the fix is instruction
+ * framing, not detection: prefer a background/detached subagent when the
+ * harness supports one, and unconditionally require the final message to be
+ * the answer, never the drain report, when it doesn't.
+ *
  * Every interpolated field is passed through clean(): whitespace (incl.
  * newlines) collapsed and length clamped. The queue's lastError and the
  * librarian's summaries are NOT human-reviewed content — without this, a
@@ -152,7 +165,7 @@ export function renderNotification({ queueCount, parked, proposals, drops, parke
       lines.push(`    - "${summary}" matched ${matched}${reason}`);
     }
   }
-  // Contribute-mismatched candidates (docs/issues/0127): captured but never
+  // Contribute-mismatched candidates (docs/issues/0128): captured but never
   // proposed — a permissions/marker problem only a human can fix, so it must
   // surface here rather than living only in a librarian run's transient notes.
   if (parkedCandidates.length > 0) {
@@ -183,8 +196,13 @@ export function renderPausedNotice(pausePath) {
 export function renderDrainInstruction() {
   return [
     'lore drain: captures are queued, and draining them is this session\'s job (docs/issues/0057).',
-    'After handling the user\'s current request — or immediately as a background task if this',
-    'harness supports one — launch the `librarian` agent with these instructions:',
+    'Prefer launching the `librarian` agent as a background/detached subagent if this harness',
+    'supports one, so the drain runs without ever becoming this turn\'s visible output. If it',
+    'does not, run the drain only after you have fully answered the user\'s current request.',
+    'In ALL cases, no exceptions: your final message must answer the user\'s request — never end',
+    'this turn on the drain report. A headless run (e.g. `claude -p`) prints only the final',
+    'message, so a drain summary written last silently swallows the real answer.',
+    'Instructions for the drain itself:',
     `  1. Run: node "${drainScript}" claim`,
     '     It prints {"claimed": [entries]}. An empty list means another session is already',
     '     draining (or nothing is ready) — stop there.',

@@ -50,6 +50,31 @@ the proposal's review state.
    check you're passing the exact `ref` string `propose_record` returned,
    not a reconstructed guess.
 
+## Cleaning up a wrong proposal (reject)
+
+When a proposal turns out to be wrong — a duplicate, the wrong scope, or
+extracted from a decision that got reversed before anyone merged it — close
+it with `reject_proposal(ref, reason?)`. It stamps who rejected it (and why,
+when given) as a PR comment, then closes without merging. The draft branch
+is left in place — this decides the proposal, it doesn't destroy the work —
+but the candidate stops surfacing as an in-flight draft in search or the
+review queue.
+
+`retract(record_ulid)` is **not** the same thing: it only pulls one candidate
+back out of a still-open rolling batch, and if that was the last candidate on
+the batch, the PR is left open as an empty shell — nobody asked for it to
+close, and nothing closes it automatically. If you need the proposal itself
+gone, reject it; don't assume retracting the last candidate did that for you.
+
+`reject_proposal` needs the same authorization as promoting: your `approve`
+set (see `whoami`) must cover every scope the proposal touches, exactly like
+a human clicking Reject in the portal. **If you don't hold approve there, you
+have no path here** — say so plainly, and ask whoever does hold approve on
+that scope to reject it (or promote it, if a second look says it was right
+after all). There is no lower-privilege way to close someone else's proposal
+from an agent, and there shouldn't be — closing review-visible work needs the
+same authority deciding it any other way does.
+
 ## Answering "what did my sessions contribute?"
 
 Session capture is asynchronous: the session-end hook only *enqueues* a
@@ -58,7 +83,7 @@ reference, and the librarian extracts and proposes on a later drain. So the
 came from previous sessions, recorded by librarian runs in
 `${LORE_HOME:-~/.lore}/pending-proposals.json` (`proposals` opened,
 duplicate `drops`, and `parked` candidates whose scope wasn't
-contributable — docs/issues/0127; shapes owned by this plugin's
+contributable — docs/issues/0128; shapes owned by this plugin's
 `hooks/pending-proposals.mjs`).
 
 To answer:
@@ -90,7 +115,7 @@ view is the portal's review page.
 A reviewer who wants something different comments on the proposal instead of
 promoting it. Answer it with **`revise_proposal(ref, ulid, …)`** — the same
 structured patch `propose_revision` takes (`title`, `description`, `tags`,
-`body`, `links`, `stale_after`), landing as one more commit on that proposal's existing
+`body`, `links`, `owners`, `stale_after`), landing as one more commit on that proposal's existing
 draft, keeping the ref and the reviewer's discussion.
 
 **Never answer feedback by calling `propose_record`/`propose_revision`
@@ -132,7 +157,8 @@ point.
 - [ ] If the proposal was superseded by events (the underlying decision
       changed before merge, or someone else proposed something better),
       say so rather than letting it merge stale — don't just abandon it
-      silently.
+      silently. If you hold approve on its scope, `reject_proposal` is how
+      you actually close it; otherwise ask a reviewer who does.
 - [ ] Once merged, treat the record as canonical from that point forward:
       stop citing draft state, and if downstream work was blocked on it,
       unblock it.
@@ -147,8 +173,8 @@ Two different operations change existing canon — pick by what changed:
   tags) → **`propose_revision`**. Same record, same ULID, same path; pass the
   `ulid` plus only the fields you're changing (`title`, `description`,
   `tags`, `body`, `stale_after` — the record's declared OKF expiry date,
-  `YYYY-MM-DD`; an empty string removes it — and `links` — a wholesale
-  replacement of the typed-link arrays, for repairing a relationship that
+  `YYYY-MM-DD`; an empty string removes it — and `links`/`owners` — each a wholesale
+  replacement (`links` the typed-link arrays, `owners` the owner list — so a wrong or unmapped owner is fixable without touching git), for repairing a relationship that
   was missed). Identity can't be
   touched, a no-op patch is refused, and the result is a normal PR to track
   like any other proposal. Never supersede to fix wording — it forks history
