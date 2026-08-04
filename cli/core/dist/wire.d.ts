@@ -118,6 +118,8 @@ export interface PortalSession {
     canPropose: boolean;
     /** Portal authoring opt-in (ADR-0009): the `portalAuthoring` runtime-config flag. The server enforces it on `/portal/authoring/*`; the SPA mirror just hides the surfaces. */
     authoringEnabled: boolean;
+    /** This instance can mint long-lived MCP tokens (docs/issues/0123) — true iff local auth mode, where `POST /api/auth/token` exists at all. The SPA offers the surface off this rather than sniffing the auth mode for itself. */
+    mcpTokensEnabled: boolean;
     /**
      * How many proposals one bulk rejection may carry (docs/issues/0104). Served
      * rather than mirrored as a client constant: the SPA chunks a larger pile to

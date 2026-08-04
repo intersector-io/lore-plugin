@@ -33,6 +33,18 @@ async function whoamiStatus(base, token) {
   }
 }
 
+/** The instance's auth mode ('local' | 'oidc'), or null if unreachable — `/api/auth/mode` is unauthenticated. */
+async function authMode(base) {
+  try {
+    const res = await fetch(`${base}/api/auth/mode`, { signal: AbortSignal.timeout(1500) });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return body?.mode === 'local' || body?.mode === 'oidc' ? body.mode : null;
+  } catch {
+    return null;
+  }
+}
+
 try {
   const url = process.env.LORE_MCP_URL;
   const envToken = process.env.LORE_MCP_TOKEN;
@@ -48,12 +60,16 @@ try {
     // path costs one request.
     const fileStatus =
       envStatus === 401 && fileToken !== null ? await whoamiStatus(base, fileToken) : null;
+    // The mode only affects the remedy, so it is worth a request only on the 401
+    // path that is about to print one.
+    const mode = envStatus === 401 ? await authMode(base) : null;
     message = classifyTokenState({
       envSet: true,
       envStatus,
       fileTokenSet: fileToken !== null,
       fileStatus,
       envEqualsFile: fileToken !== null && fileToken === envToken,
+      authMode: mode,
     });
   }
 
