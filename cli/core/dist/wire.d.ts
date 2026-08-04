@@ -104,8 +104,6 @@ export interface PortalTree {
 export interface PortalSession {
     /** Display identity (CONTEXT.md "Identity Map"). */
     id: string;
-    /** True when this is the demo-mode anonymous visitor (a request with no bearer becomes a read-only principal). */
-    anonymous: boolean;
     /** Admin role claim (`identity.adminRole`, ADR-0006) — gates the govern/install surfaces, including the authorization editor (ADR-0010). */
     isAdmin: boolean;
     /**
@@ -120,8 +118,6 @@ export interface PortalSession {
     canPropose: boolean;
     /** Portal authoring opt-in (ADR-0009): the `portalAuthoring` runtime-config flag. The server enforces it on `/portal/authoring/*`; the SPA mirror just hides the surfaces. */
     authoringEnabled: boolean;
-    /** Demo mode (docs/issues/0039): every mutation on a govern/install surface is refused. */
-    demoMode: boolean;
     /**
      * How many proposals one bulk rejection may carry (docs/issues/0104). Served
      * rather than mirrored as a client constant: the SPA chunks a larger pile to

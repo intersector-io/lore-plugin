@@ -27,10 +27,7 @@ What the sample records deliberately demonstrate:
 
 To run it, git-init a copy of this tree and point the compose stack's
 `LORE_REPO_HOST_PATH` at it — the exact sequence is in the public docs
-("Try lore locally" on the portal page) and `docs/deploy/runbook.md`. For a
-shared evaluation instance, add `LORE_DEMO_MODE=1`: reading, search, and
-dashboards work fully, while the admin surfaces (grants editing, git
-configuration) render behind a "DEMO — read-only" plate and refuse mutations.
+("Try lore locally" on the portal page) and `docs/deploy/runbook.md`.
 
 The record format, branch model, type catalog, and `.lore/` configuration are
 identical to `template/` — read `template/README.md` for the full reference.
