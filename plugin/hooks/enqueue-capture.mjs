@@ -24,11 +24,13 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { resolveScopeMarker } from './lib/scope-marker.mjs';
 import {
+  QUEUE_MUTEX_HOOK_WAIT_MS,
   loreHome,
   pausePathIn,
   queuePathIn,
   readQueue,
   transcriptMissing,
+  withQueueLock,
   writeQueue,
 } from './lib/queue.mjs';
 
@@ -43,12 +45,7 @@ function readStdinJson() {
   }
 }
 
-function main() {
-  const input = readStdinJson();
-  const home = loreHome();
-  // Capture pause marker — see pausePathIn in lib/queue.mjs.
-  if (existsSync(pausePathIn(home))) return;
-  mkdirSync(home, { recursive: true });
+function record(input, home) {
   const queuePath = queuePathIn(home);
   const sessionRef = input.session_id ?? null;
   if (sessionRef !== null) {
@@ -97,6 +94,24 @@ function main() {
     attempts: 0,
   };
   appendFileSync(queuePath, JSON.stringify(entry) + '\n', 'utf8');
+}
+
+function main() {
+  const input = readStdinJson();
+  const home = loreHome();
+  // Capture pause marker — see pausePathIn in lib/queue.mjs.
+  if (existsSync(pausePathIn(home))) return;
+  mkdirSync(home, { recursive: true });
+  // Take the queue mutex so a drain rewriting the file can't drop this
+  // append (docs/issues/0136) — the gap writeQueue used to document as
+  // accepted. The wait budget is deliberately tiny: this runs at session
+  // close and must never make the user wait on another terminal, so losing
+  // the race falls back to the unlocked append, which is exactly the
+  // pre-0136 behavior and never worse than it.
+  const { locked } = withQueueLock(home, () => record(input, home), {
+    waitMs: QUEUE_MUTEX_HOOK_WAIT_MS,
+  });
+  if (!locked) record(input, home);
 }
 
 try {

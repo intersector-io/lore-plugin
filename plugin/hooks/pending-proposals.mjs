@@ -42,10 +42,16 @@ import {
   entryTime,
   loreHome,
   readJsonl,
+  withFileLock,
 } from './lib/queue.mjs';
 
 export function pendingProposalsPathIn(home) {
   return path.join(home, 'pending-proposals.json');
+}
+
+/** The mutex guarding the file above — see withFileLock (docs/issues/0136). */
+function pendingMutexPathIn(home) {
+  return path.join(home, 'pending-proposals.lock');
 }
 
 /** Append-only recall-failure log (docs/issues/0126); retention and prune never touch it. */
@@ -158,11 +164,19 @@ function main() {
           'utf8',
         );
       }
-      const state = readState(statePath);
-      state.proposals.push(...proposals);
-      state.drops.push(...drops);
-      state.parked.push(...parked);
-      write(statePath, state, now);
+      // Read-modify-write, so it needs the file's mutex: a human can run the
+      // librarian directly in one terminal while another drains, and two
+      // unserialized recorders each read the old state and each write it back,
+      // dropping one run's proposals from the session-start notice entirely
+      // (docs/issues/0136).
+      const { locked } = withFileLock(pendingMutexPathIn(home), () => {
+        const state = readState(statePath);
+        state.proposals.push(...proposals);
+        state.drops.push(...drops);
+        state.parked.push(...parked);
+        write(statePath, state, now);
+      });
+      if (!locked) fail('another process is writing pending-proposals.json — nothing was recorded; retry');
       return;
     }
     case 'recurrence': {

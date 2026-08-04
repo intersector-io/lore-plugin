@@ -36,7 +36,10 @@ you touch it — never edit `capture-queue.jsonl` directly:
 
 1. `node "<hooks dir>/drain-queue.mjs" claim` — prints
    `{"claimed": [entries]}`. An empty list means another session holds the
-   drain lock or nothing is ready; stop, that is a normal outcome.
+   drain lock or nothing is ready; stop, that is a normal outcome. So does a
+   non-zero exit reporting that another process is writing the queue: it
+   changed nothing, and several terminals racing here is expected, not an
+   error to work around.
 2. Run steps 1–5 below once per claimed entry, oldest first.
 3. After each entry, record the outcome, always passing the entry's
    `claimedAt` value (from the claim output) as the claim token:

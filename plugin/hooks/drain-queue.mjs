@@ -50,9 +50,9 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import {
   DRAIN_BATCH_SIZE,
   MAX_ATTEMPTS,
+  claimAlive,
   drainEligible,
   entryTime,
-  isFresh,
   lockIsFresh,
   lockPathIn,
   loreHome,
@@ -62,6 +62,7 @@ import {
   readQueue,
   terminalExpired,
   transcriptMissing,
+  withQueueLock,
   writeQueue,
 } from './lib/queue.mjs';
 
@@ -74,6 +75,7 @@ import {
 function parkEntry(entry, message, now, attempts = entry.attempts) {
   const parked = { ...entry, attempts, status: 'parked', ts: new Date(now).toISOString(), lastError: message };
   delete parked.claimedAt;
+  delete parked.leaseAt;
   return parked;
 }
 
@@ -82,13 +84,41 @@ function failEntry(entry, message, now) {
   if (attempts >= MAX_ATTEMPTS) return parkEntry(entry, message, now, attempts);
   const failed = { ...entry, attempts, status: 'queued', lastError: message };
   delete failed.claimedAt;
+  delete failed.leaseAt;
   return failed;
 }
 
+function takeLock(lockPath, now) {
+  writeFileSync(
+    lockPath,
+    JSON.stringify({ pid: process.pid, ts: new Date(now).toISOString() }) + '\n',
+    'utf8',
+  );
+}
+
+function draining(entries) {
+  return entries.some((e) => e.status === 'draining');
+}
+
+/**
+ * Release the drain lease once nothing is left draining. Deliberately never
+ * RENEWS: a losing `claim` must not extend the lease of the drain that beat
+ * it, or a crashed holder's lease would be refreshed by every session start
+ * and never go stale — the queue would wedge forever.
+ */
 function releaseLockIfIdle(entries, lockPath) {
-  if (!entries.some((e) => e.status === 'draining')) {
-    rmSync(lockPath, { force: true });
-  }
+  if (!draining(entries)) rmSync(lockPath, { force: true });
+}
+
+/**
+ * The transition counterpart: finishing an entry is proof the drain is alive
+ * and working, so it renews the lease over the rest of its batch
+ * (docs/issues/0136) — which is what makes a slow three-entry run safe
+ * without asking the agent to heartbeat.
+ */
+function renewOrReleaseLock(entries, lockPath, now) {
+  if (draining(entries)) takeLock(lockPath, now);
+  else rmSync(lockPath, { force: true });
 }
 
 function claim(home, now) {
@@ -97,11 +127,12 @@ function claim(home, now) {
   let entries = readQueue(queuePath);
 
   // A crashed drain left entries claimed forever ago: that claim was a
-  // failed attempt. Fresh claims belong to a live drain — leave them.
-  // (isFresh also treats a FUTURE claimedAt as stale, same as the lock.)
+  // failed attempt. Live claims — ones whose lease is still being renewed —
+  // belong to a working drain, leave them. (claimAlive treats a FUTURE
+  // timestamp as stale, same as the lock.)
   entries = entries.map((e) => {
     if (e.status !== 'draining') return e;
-    if (isFresh(e.claimedAt, now)) return e;
+    if (claimAlive(e, now)) return e;
     return failEntry(e, 'drain claim expired', now);
   });
 
@@ -134,15 +165,10 @@ function claim(home, now) {
     for (const entry of batch) {
       entry.status = 'draining';
       entry.claimedAt = new Date(now).toISOString();
+      entry.leaseAt = entry.claimedAt;
       claimed.push(entry);
     }
-    if (claimed.length > 0) {
-      writeFileSync(
-        lockPath,
-        JSON.stringify({ pid: process.pid, ts: new Date(now).toISOString() }) + '\n',
-        'utf8',
-      );
-    }
+    if (claimed.length > 0) takeLock(lockPath, now);
   }
 
   writeQueue(queuePath, entries);
@@ -150,7 +176,7 @@ function claim(home, now) {
   process.stdout.write(JSON.stringify({ claimed }) + '\n');
 }
 
-function transition(home, sessionRef, claimToken, apply) {
+function transition(home, sessionRef, claimToken, apply, now) {
   const queuePath = queuePathIn(home);
   const entries = readQueue(queuePath);
   const entry = entries.find(
@@ -164,9 +190,16 @@ function transition(home, sessionRef, claimToken, apply) {
     process.exitCode = 1;
     return;
   }
-  const updated = entries.map((e) => (e === entry ? apply(e) : e));
+  // Finishing one entry renews the lease on the rest of this drain's batch —
+  // see claimAlive (docs/issues/0136). `claimedAt` is the token the agent is
+  // still holding for them and is deliberately left alone.
+  const updated = entries.map((e) => {
+    if (e === entry) return apply(e);
+    if (e.status === 'draining') return { ...e, leaseAt: new Date(now).toISOString() };
+    return e;
+  });
   writeQueue(queuePath, updated);
-  releaseLockIfIdle(updated, lockPathIn(home));
+  renewOrReleaseLock(updated, lockPathIn(home), now);
 }
 
 function main() {
@@ -175,31 +208,53 @@ function main() {
   mkdirSync(home, { recursive: true });
   const now = Date.now();
 
+  /**
+   * Every command that rewrites the queue runs here, as the sole writer
+   * (docs/issues/0136). Losing the mutex is not a queue error and never
+   * mutates anything: it means another terminal is mid-write, so the caller
+   * stands down and the next session start picks the work up.
+   */
+  const exclusively = (fn) => {
+    if (!withQueueLock(home, fn).locked) {
+      process.stderr.write(
+        'another process is writing the capture queue — nothing was changed; try again\n',
+      );
+      process.exitCode = 1;
+    }
+  };
+
   switch (command) {
     case 'claim':
-      claim(home, now);
+      exclusively(() => claim(home, now));
       return;
     case 'complete': {
       if (!rest[0] || !rest[1]) break;
-      transition(home, rest[0], rest[1], (e) => {
-        const done = { ...e, status: 'done', ts: new Date(now).toISOString() };
-        delete done.claimedAt;
-        delete done.lastError;
-        return done;
-      });
+      exclusively(() =>
+        transition(home, rest[0], rest[1], (e) => {
+          const done = { ...e, status: 'done', ts: new Date(now).toISOString() };
+          delete done.claimedAt;
+          delete done.leaseAt;
+          delete done.lastError;
+          return done;
+        }, now),
+      );
       return;
     }
     case 'fail': {
       if (!rest[0] || !rest[1]) break;
-      transition(home, rest[0], rest[1], (e) =>
-        failEntry(e, rest.slice(2).join(' ') || 'librarian run failed', now),
+      exclusively(() =>
+        transition(home, rest[0], rest[1], (e) =>
+          failEntry(e, rest.slice(2).join(' ') || 'librarian run failed', now), now,
+        ),
       );
       return;
     }
     case 'park': {
       if (!rest[0] || !rest[1]) break;
-      transition(home, rest[0], rest[1], (e) =>
-        parkEntry(e, rest.slice(2).join(' ') || 'parked as unrecoverable', now),
+      exclusively(() =>
+        transition(home, rest[0], rest[1], (e) =>
+          parkEntry(e, rest.slice(2).join(' ') || 'parked as unrecoverable', now), now,
+        ),
       );
       return;
     }
@@ -221,22 +276,26 @@ function main() {
       // An expired parked entry is pruned, never resurrected — it was no
       // longer being shown, so retrying it would revive work the user never
       // saw (docs/issues/0124).
-      const entries = readQueue(queuePath)
-        .filter((e) => !terminalExpired(e, now))
-        .map((e) => {
-          if (e.status !== 'parked') return e;
-          const retried = { ...e, status: 'queued', attempts: 0 };
-          delete retried.lastError;
-          return retried;
-        });
-      writeQueue(queuePath, entries);
+      exclusively(() => {
+        const entries = readQueue(queuePath)
+          .filter((e) => !terminalExpired(e, now))
+          .map((e) => {
+            if (e.status !== 'parked') return e;
+            const retried = { ...e, status: 'queued', attempts: 0 };
+            delete retried.lastError;
+            return retried;
+          });
+        writeQueue(queuePath, entries);
+      });
       return;
     }
     case 'clear': {
       const queuePath = queuePathIn(home);
-      writeQueue(
-        queuePath,
-        readQueue(queuePath).filter((e) => e.status !== 'parked'),
+      exclusively(() =>
+        writeQueue(
+          queuePath,
+          readQueue(queuePath).filter((e) => e.status !== 'parked'),
+        ),
       );
       return;
     }
