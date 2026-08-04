@@ -177,8 +177,11 @@ export function renderSummary({ queued, parked, proposals, drops, parkedCandidat
   if (parked > 0 || proposals > 0 || drops > 0 || parkedCandidates > 0) {
     lines.push("  Details are in this session's context — just ask.");
   }
+  // Human-facing, so it names the ask, never a command — the agent runs the
+  // queue script (parked-captures skill / renderParkedActionsInstruction),
+  // not the user (docs/issues/0135).
   if (parked > 0) {
-    lines.push(`  Parked captures: fix the cause, then node "${drainScript}" retry — or dismiss with: node "${drainScript}" clear`);
+    lines.push('  Parked captures: fix the cause, then ask me to retry them — or ask me to dismiss them.');
   }
   return lines.join('\n');
 }
@@ -190,9 +193,11 @@ export function renderNotification({ queueCount, parked, proposals, drops, parke
   if (parked.length > 0) {
     // The header stays cause-agnostic: each park's lastError names its own
     // fix (the librarian is instructed to say how to unblock, e.g. add the
-    // repo's .lore/scope.yml or open the scope in the access matrix).
+    // repo's .lore/scope.yml or open the scope in the access matrix). The
+    // retry/clear commands live only in renderParkedActionsInstruction —
+    // one home, no drift (docs/issues/0135).
     lines.push(
-      `  ${n(parked.length, 'capture', 'captures')} parked — these will not drain again on their own. Fix the cause named below, then re-enqueue with: node "${drainScript}" retry — or dismiss all parked with: node "${drainScript}" clear`,
+      `  ${n(parked.length, 'capture', 'captures')} parked — these will not drain again on their own. Fix the cause named below, then retry (or dismiss) via the "lore parked captures" instruction.`,
     );
     // Group identical errors: a machine with dozens of "transcript missing"
     // ghosts (docs/issues/0124) must not print dozens of identical lines on
@@ -260,7 +265,7 @@ export function renderNotification({ queueCount, parked, proposals, drops, parke
 export function renderPausedNotice(pausePath) {
   return [
     'lore: capture is paused — this session will not be captured, and queued captures will not drain.',
-    `  Resume with the capture-pause skill, or: rm "${pausePath}"`,
+    `  Ask me to resume capture (the capture-pause skill); the marker is "${pausePath}".`,
   ].join('\n');
 }
 
@@ -292,7 +297,24 @@ export function renderScopeParkFixInstruction() {
     '  2. If the scope does not exist in the deployment, an admin must open it in the access',
     '     matrix (the `set_authorization` MCP tool, or the onboarding skill walks through it).',
     '     If the user is not an admin, tell them who to ask; do not work around the matrix.',
-    `  3. Once both are in place, re-enqueue the parked captures: node "${drainScript}" retry`,
+    '  3. Once both are in place, re-enqueue the parked captures — the retry action in the',
+    '     "lore parked captures" instruction (shown whenever queue entries are parked).',
+  ].join('\n');
+}
+
+/**
+ * Agent-facing (additionalContext only): the human notice above deliberately
+ * names no command — "ask me to retry/dismiss" — so the agent must know how
+ * to honor that ask in-session. The parked-captures skill carries the full
+ * guidance; this is the minimal fallback so the ask works even before the
+ * skill triggers.
+ */
+export function renderParkedActionsInstruction() {
+  return [
+    'lore parked captures: if the user asks to retry or dismiss the parked captures above, run',
+    'it for them — never hand the human a command (full guidance: the parked-captures skill):',
+    `  retry (re-queue all parked, once the cause is fixed):  node "${drainScript}" retry`,
+    `  dismiss (drop all parked now — irreversible, confirm first):  node "${drainScript}" clear`,
   ].join('\n');
 }
 
@@ -369,6 +391,9 @@ function main() {
   }
   const message = messageParts.length > 0 ? messageParts.join('\n') : null;
   if (brief) contextParts.push(renderBrief(brief));
+  // The human notice offers "ask me to retry/dismiss" — give the agent the
+  // commands that honor the ask. Agent-facing, so additionalContext only.
+  if (parked.length > 0) contextParts.push(renderParkedActionsInstruction());
   // A scope park (queue entry or per-candidate) is fixable in THIS session
   // with the user's confirmation — instruct the agent to offer, not to make
   // the human run the steps by hand. Agent-facing, so additionalContext only.

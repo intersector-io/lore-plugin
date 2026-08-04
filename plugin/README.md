@@ -59,6 +59,8 @@ stays at the plugin root:
 - `skills/guide` — answer questions about lore itself from its own docs.
 - `skills/capture-pause` — pause/resume session capture on this machine via
   the `${LORE_HOME:-~/.lore}/capture-paused` marker; retrieval is unaffected.
+- `skills/parked-captures` — retry or dismiss parked capture-queue entries on
+  the user's ask; the agent runs `hooks/drain-queue.mjs`, never the human.
 - `skills/onboarding` — drive an admin through finishing a fresh deployment's
   rollout.
 - `agents/` — `librarian` (capture → dedupe → batch-propose) and
