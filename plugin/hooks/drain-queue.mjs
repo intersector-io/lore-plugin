@@ -21,8 +21,18 @@
  *   complete <ref> <token>       mark the claimed entry done
  *   fail <ref> <token> [msg]     count a failed attempt; re-queue, or
  *                                park at MAX_ATTEMPTS
+ *   park <ref> <token> [msg]     park the claimed entry immediately — for
+ *                                errors a retry cannot fix (no scope
+ *                                marker + scope not in the contribute
+ *                                set), so a permanent mismatch costs one
+ *                                librarian run, not MAX_ATTEMPTS of them
  *   retry                        reset every parked entry to queued
  *                                (attempts 0); prunes expired ones
+ *   clear                        drop every parked entry now — the escape
+ *                                hatch for unrecoverable parks (transcript
+ *                                gone, scope never to be opened) that
+ *                                would otherwise nag every session start
+ *                                until 14-day retention ages them out
  *   status                       read-only {queued, parked} counts, with
  *                                the same expiry rules the notification
  *                                applies
@@ -55,16 +65,23 @@ import {
   writeQueue,
 } from './lib/queue.mjs';
 
-function failEntry(entry, message) {
+/**
+ * The one constructor for a parked entry: status, retention restamp (ts ages
+ * from the transition into parked, the same way `complete` restamps for
+ * done), lastError, and no claim. Every park — fail-at-cap, claim's
+ * unrecoverable entries, the explicit `park` command — goes through it.
+ */
+function parkEntry(entry, message, now, attempts = entry.attempts) {
+  const parked = { ...entry, attempts, status: 'parked', ts: new Date(now).toISOString(), lastError: message };
+  delete parked.claimedAt;
+  return parked;
+}
+
+function failEntry(entry, message, now) {
   const attempts = entry.attempts + 1;
-  const failed = { ...entry, attempts, lastError: message };
+  if (attempts >= MAX_ATTEMPTS) return parkEntry(entry, message, now, attempts);
+  const failed = { ...entry, attempts, status: 'queued', lastError: message };
   delete failed.claimedAt;
-  failed.status = attempts >= MAX_ATTEMPTS ? 'parked' : 'queued';
-  if (failed.status === 'parked') {
-    // Retention ages a terminal entry from the transition into it, the same
-    // way `complete` restamps ts for done.
-    failed.ts = new Date().toISOString();
-  }
   return failed;
 }
 
@@ -85,7 +102,7 @@ function claim(home, now) {
   entries = entries.map((e) => {
     if (e.status !== 'draining') return e;
     if (isFresh(e.claimedAt, now)) return e;
-    return failEntry(e, 'drain claim expired');
+    return failEntry(e, 'drain claim expired', now);
   });
 
   entries = entries.filter((e) => !terminalExpired(e, now));
@@ -100,12 +117,8 @@ function claim(home, now) {
       // no sessionRef means no complete/fail call could ever address the
       // entry (transitions match by ref), so claiming it would only
       // starve the batch until it force-parks.
-      if (!e.sessionRef) {
-        return { ...e, ts: new Date(now).toISOString(), status: 'parked', lastError: 'no session ref' };
-      }
-      if (transcriptMissing(e.transcriptPath)) {
-        return { ...e, ts: new Date(now).toISOString(), status: 'parked', lastError: 'transcript missing' };
-      }
+      if (!e.sessionRef) return parkEntry(e, 'no session ref', now);
+      if (transcriptMissing(e.transcriptPath)) return parkEntry(e, 'transcript missing', now);
       return e;
     });
     // Capture pause marker (see pausePathIn in lib/queue.mjs): gate only the
@@ -179,7 +192,14 @@ function main() {
     case 'fail': {
       if (!rest[0] || !rest[1]) break;
       transition(home, rest[0], rest[1], (e) =>
-        failEntry(e, rest.slice(2).join(' ') || 'librarian run failed'),
+        failEntry(e, rest.slice(2).join(' ') || 'librarian run failed', now),
+      );
+      return;
+    }
+    case 'park': {
+      if (!rest[0] || !rest[1]) break;
+      transition(home, rest[0], rest[1], (e) =>
+        parkEntry(e, rest.slice(2).join(' ') || 'parked as unrecoverable', now),
       );
       return;
     }
@@ -212,9 +232,17 @@ function main() {
       writeQueue(queuePath, entries);
       return;
     }
+    case 'clear': {
+      const queuePath = queuePathIn(home);
+      writeQueue(
+        queuePath,
+        readQueue(queuePath).filter((e) => e.status !== 'parked'),
+      );
+      return;
+    }
   }
   process.stderr.write(
-    'usage: drain-queue.mjs claim | complete <sessionRef> <claimToken> | fail <sessionRef> <claimToken> [message] | retry | status\n',
+    'usage: drain-queue.mjs claim | complete <sessionRef> <claimToken> | fail <sessionRef> <claimToken> [message] | park <sessionRef> <claimToken> [message] | retry | clear | status\n',
   );
   process.exitCode = 1;
 }

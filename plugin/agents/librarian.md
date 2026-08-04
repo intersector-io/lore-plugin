@@ -44,9 +44,13 @@ you touch it — never edit `capture-queue.jsonl` directly:
    `claimedAt` value (from the claim output) as the claim token:
    `… complete <sessionRef> <claimedAt>` on success — **a run that
    correctly extracted zero candidates is a success** — or
-   `… fail <sessionRef> <claimedAt> <short reason>` on any error. Never
-   leave a claimed entry unrecorded: it blocks the queue until its claim
-   expires, and repeated failures park the entry for the user to see. If
+   `… fail <sessionRef> <claimedAt> <short reason>` on a transient error
+   (a retry could plausibly succeed), or
+   `… park <sessionRef> <claimedAt> <short reason>` on a permanent one —
+   a condition no retry can change, like a scope/permissions mismatch
+   (step 4). Never leave a claimed entry unrecorded: it blocks the queue
+   until its claim expires, and repeated failures park the entry for the
+   user to see. If
    the call reports no matching claim token, your claim expired and
    another session took over — stop; do not retry or improvise.
 
@@ -182,9 +186,13 @@ is not in `contribute`, do not silently substitute another scope — park
 that candidate: name it, with its blocked scope, in your run notes AND in
 the step-5 write's `parked` array, which is what actually reaches the user
 at the next session start. When that leaves the entry with nothing
-proposable at all, fail the entry — and say in the reason that the
-mismatch is a permissions/marker problem a retry cannot fix, so nobody
-burns drain attempts expecting one to.
+proposable at all, **park the entry, don't fail it** — use
+`… park <sessionRef> <claimedAt> <reason>` (step 0.3): a
+permissions/marker mismatch is permanent, so re-queueing it just burns
+drain attempts on runs that cannot succeed. The reason must name the fix —
+the blocked scope, and that adding the repo's `.lore/scope.yml` or opening
+the scope in the access matrix (then `drain-queue.mjs retry`) is what
+unblocks it.
 
 - **duplicate** — do **not** propose. There is currently no tool that
   writes directly onto an open batch PR's description (no

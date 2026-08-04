@@ -130,11 +130,26 @@ export function renderNotification({ queueCount, parked, proposals, drops, parke
     `  ${queueCount} pending capture${queueCount === 1 ? '' : 's'} queued for the librarian.`,
   );
   if (parked.length > 0) {
+    // The header stays cause-agnostic: each park's lastError names its own
+    // fix (the librarian is instructed to say how to unblock, e.g. add the
+    // repo's .lore/scope.yml or open the scope in the access matrix).
     lines.push(
-      `  ${parked.length} capture${parked.length === 1 ? '' : 's'} parked after repeated failures — retry with: node "${drainScript}" retry`,
+      `  ${parked.length} capture${parked.length === 1 ? '' : 's'} parked — these will not drain again on their own. Fix the cause named below, then re-enqueue with: node "${drainScript}" retry — or dismiss all parked with: node "${drainScript}" clear`,
     );
+    // Group identical errors: a machine with dozens of "transcript missing"
+    // ghosts (docs/issues/0124) must not print dozens of identical lines on
+    // every session start — one line per distinct cause, with a count.
+    const byError = new Map();
     for (const p of parked) {
-      lines.push(`    - ${clean(p.sessionRef ?? '(unknown session)', 80)}: ${clean(p.lastError ?? 'unknown error', 200)}`);
+      const error = clean(p.lastError ?? 'unknown error', 200);
+      const seen = byError.get(error);
+      if (seen) seen.count += 1;
+      else byError.set(error, { first: clean(p.sessionRef ?? '(unknown session)', 80), count: 1 });
+    }
+    for (const [error, { first, count }] of byError) {
+      lines.push(
+        count === 1 ? `    - ${first}: ${error}` : `    - ${count} captures (${first}, …): ${error}`,
+      );
     }
   }
   // Omitted when empty: a machine with no librarian runs yet would
@@ -193,6 +208,38 @@ export function renderPausedNotice(pausePath) {
   ].join('\n');
 }
 
+/**
+ * A park whose cause is a scope/marker/permissions mismatch is fixable by
+ * an agent in an interactive session — but only with the user in the loop:
+ * the slug is a naming decision and the marker must be committed to the
+ * working repo, and opening a scope in the access matrix is an admin act
+ * (ADR-0023 / ADR-0010: surfaced, never silently substituted). Heuristic
+ * match on the free-text reason; the librarian is instructed to name the
+ * marker/scope in every such park reason.
+ */
+export function isScopePark(reason) {
+  return /scope|\.lore\/scope\.yml|access matrix|contribute/i.test(String(reason ?? ''));
+}
+
+/**
+ * Agent-facing (additionalContext only): turn a scope park from a list of
+ * manual steps for the human into an offer the agent makes this session.
+ */
+export function renderScopeParkFixInstruction() {
+  return [
+    'lore scope parks: some captures above are parked on a scope/marker mismatch — a condition',
+    'you can fix WITH the user, never silently (the scope slug is a naming decision and the',
+    'marker must be committed):',
+    '  1. Offer to create `.lore/scope.yml` at the working repo root (`scope: product:<slug>`',
+    '     or `team:<slug>`; `org` is refused) and commit it. Confirm the slug with the user —',
+    '     never guess it.',
+    '  2. If the scope does not exist in the deployment, an admin must open it in the access',
+    '     matrix (the `set_authorization` MCP tool, or the onboarding skill walks through it).',
+    '     If the user is not an admin, tell them who to ask; do not work around the matrix.',
+    `  3. Once both are in place, re-enqueue the parked captures: node "${drainScript}" retry`,
+  ].join('\n');
+}
+
 export function renderDrainInstruction() {
   return [
     'lore drain: captures are queued, and draining them is this session\'s job (docs/issues/0057).',
@@ -210,7 +257,8 @@ export function renderDrainInstruction() {
     '     cwd (see the librarian agent definition), then record the outcome, passing the',
     '     entry\'s claimedAt value as the claim token:',
     `       node "${drainScript}" complete <sessionRef> <claimedAt>   on success (including zero candidates)`,
-    `       node "${drainScript}" fail <sessionRef> <claimedAt> <short reason>   on any error`,
+    `       node "${drainScript}" fail <sessionRef> <claimedAt> <short reason>   on a transient error`,
+    `       node "${drainScript}" park <sessionRef> <claimedAt> <short reason>   on a permanent one (e.g. scope not proposable) — a reason a retry cannot fix`,
     '  Never edit the queue file directly, and never skip the complete/fail call — an entry',
     '  left claimed blocks the queue until its claim expires.',
   ].join('\n');
@@ -249,6 +297,15 @@ function main() {
   const message = messageParts.length > 0 ? messageParts.join('\n') : null;
   const contextParts = message ? [message] : [];
   if (brief) contextParts.push(renderBrief(brief));
+  // A scope park (queue entry or per-candidate) is fixable in THIS session
+  // with the user's confirmation — instruct the agent to offer, not to make
+  // the human run the steps by hand. Agent-facing, so additionalContext only.
+  if (
+    parked.some((e) => isScopePark(e.lastError)) ||
+    parkedCandidates.some((c) => isScopePark(c.reason ?? c.scope))
+  ) {
+    contextParts.push(renderScopeParkFixInstruction());
+  }
   // Only instruct a drain when a claim would actually hand something out —
   // quiet-period entries (a possibly-live Codex session) don't count yet,
   // and a paused queue hands out nothing at all.
