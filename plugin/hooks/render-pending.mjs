@@ -1,14 +1,24 @@
 #!/usr/bin/env node
 /**
  * SessionStart hook (docs/issues/0023, drain protocol docs/issues/0057):
- * render a concise notification of what's waiting on this team — captures
- * queued but not yet run through the librarian, captures parked after
- * repeated failures, and proposals the librarian already opened that are
- * still awaiting review — each with the `retract` MCP call for easy
- * consent-withdrawal (CONTEXT.md: Librarian — "consent lives at promotion,
- * not capture"). There is no `lore retract` CLI: retraction is the `retract`
- * MCP tool (docs/issues/0091). With nothing queued, parked, proposed or
- * dropped, the notification is omitted entirely rather than announcing zeroes.
+ * render a notification of what's waiting on this team — captures queued but
+ * not yet run through the librarian, captures parked after repeated failures,
+ * and proposals the librarian already opened that are still awaiting review.
+ *
+ * The two audiences get two different renderings (terminal-pollution fix):
+ * `systemMessage` (the human's terminal) is a compact 2–4 line summary —
+ * counts, a portal review link for proposals (derived from LORE_MCP_URL; the
+ * portal serves `#/proposals` on the same origin — ADR-0006), and a pointer
+ * saying the detail is in this session's context. The full per-item detail
+ * (park causes grouped by error, per-proposal `retract` MCP calls for easy
+ * consent-withdrawal — CONTEXT.md: Librarian, "consent lives at promotion,
+ * not capture"; there is no `lore retract` CLI, docs/issues/0091 — drop
+ * reasons, blocked scopes) goes only to `additionalContext`, where the agent
+ * can answer "what's parked and why?" without the terminal ever printing the
+ * wall of lines. Parked captures and drops are per-machine `~/.lore` state
+ * the portal cannot see, which is why their detail routes through the agent
+ * rather than a link. With nothing queued, parked, proposed or dropped, the
+ * notification is omitted entirely rather than announcing zeroes.
  *
  * Reads `${LORE_HOME:-~/.lore}/capture-queue.jsonl` (one JSON object per
  * line, written by enqueue-capture.mjs, drained via drain-queue.mjs) and
@@ -123,18 +133,66 @@ function readProposalsState(statePath) {
   }
 }
 
+/** Pluralized count segment: n(1, 'capture', 'captures') → "1 capture". */
+const n = (count, singular, plural) => `${count} ${count === 1 ? singular : plural}`;
+
+/**
+ * Portal review link for proposals, derived from LORE_MCP_URL. Origin only,
+ * never any path from the MCP URL: the portal is served at the origin root
+ * beside `/api`, `/mcp` and `/docs` (ADR-0006) — the same reduction
+ * `apps/api/src/portalLinks.ts` makes server-side. Null when the env var is
+ * unset or unparseable — the summary then simply omits the link.
+ */
+export function portalProposalsUrl(mcpUrl) {
+  try {
+    return `${new URL(mcpUrl).origin}/portal/#/proposals`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The human-facing terminal summary (systemMessage): counts on one line,
+ * a portal link when proposals await review, and a pointer to the agent for
+ * everything the portal cannot show (parked captures, drops, and parked
+ * candidates live in this machine's ~/.lore, not on the server). Takes only
+ * numbers — errors, summaries and scopes render exclusively in the
+ * agent-facing detail, so a crafted lastError can't forge terminal lines
+ * here by construction.
+ */
+export function renderSummary({ queued, parked, proposals, drops, parkedCandidates, portalUrl }) {
+  const segments = [n(queued, 'capture queued', 'captures queued')];
+  if (parked > 0) segments.push(n(parked, 'capture parked', 'captures parked'));
+  if (proposals > 0) segments.push(`${n(proposals, 'proposal', 'proposals')} awaiting review`);
+  if (drops > 0) segments.push(n(drops, 'duplicate dropped', 'duplicates dropped'));
+  if (parkedCandidates > 0) {
+    segments.push(`${n(parkedCandidates, 'candidate', 'candidates')} parked on scope`);
+  }
+  const lines = [`lore: ${segments.join(' · ')}`];
+  if (proposals > 0 && portalUrl) {
+    lines.push(`  Review proposals in the portal: ${portalUrl}`);
+  }
+  // Any per-item detail routed to context earns the pointer — including a
+  // proposals-only state with no portal link, whose retract detail is there.
+  if (parked > 0 || proposals > 0 || drops > 0 || parkedCandidates > 0) {
+    lines.push("  Details are in this session's context — just ask.");
+  }
+  if (parked > 0) {
+    lines.push(`  Parked captures: fix the cause, then node "${drainScript}" retry — or dismiss with: node "${drainScript}" clear`);
+  }
+  return lines.join('\n');
+}
+
 export function renderNotification({ queueCount, parked, proposals, drops, parkedCandidates = [] }) {
   const lines = [];
   lines.push('lore: pending capture activity');
-  lines.push(
-    `  ${queueCount} pending capture${queueCount === 1 ? '' : 's'} queued for the librarian.`,
-  );
+  lines.push(`  ${n(queueCount, 'pending capture', 'pending captures')} queued for the librarian.`);
   if (parked.length > 0) {
     // The header stays cause-agnostic: each park's lastError names its own
     // fix (the librarian is instructed to say how to unblock, e.g. add the
     // repo's .lore/scope.yml or open the scope in the access matrix).
     lines.push(
-      `  ${parked.length} capture${parked.length === 1 ? '' : 's'} parked — these will not drain again on their own. Fix the cause named below, then re-enqueue with: node "${drainScript}" retry — or dismiss all parked with: node "${drainScript}" clear`,
+      `  ${n(parked.length, 'capture', 'captures')} parked — these will not drain again on their own. Fix the cause named below, then re-enqueue with: node "${drainScript}" retry — or dismiss all parked with: node "${drainScript}" clear`,
     );
     // Group identical errors: a machine with dozens of "transcript missing"
     // ghosts (docs/issues/0124) must not print dozens of identical lines on
@@ -155,9 +213,7 @@ export function renderNotification({ queueCount, parked, proposals, drops, parke
   // Omitted when empty: a machine with no librarian runs yet would
   // otherwise announce "0 proposals awaiting review" every session.
   if (proposals.length > 0) {
-    lines.push(
-      `  ${proposals.length} proposal${proposals.length === 1 ? '' : 's'} awaiting review.`,
-    );
+    lines.push(`  ${n(proposals.length, 'proposal', 'proposals')} awaiting review.`);
   }
   for (const p of proposals) {
     const ulid = clean(p.ulid ?? '<ulid>', 40);
@@ -171,7 +227,7 @@ export function renderNotification({ queueCount, parked, proposals, drops, parke
   }
   if (drops.length > 0) {
     lines.push(
-      `  ${drops.length} candidate${drops.length === 1 ? ' dropped as a duplicate' : 's dropped as duplicates'} on the last librarian run:`,
+      `  ${n(drops.length, 'candidate dropped as a duplicate', 'candidates dropped as duplicates')} on the last librarian run:`,
     );
     for (const d of drops) {
       const summary = clean(d.candidateSummary ?? '(no summary)', 200);
@@ -185,7 +241,7 @@ export function renderNotification({ queueCount, parked, proposals, drops, parke
   // surface here rather than living only in a librarian run's transient notes.
   if (parkedCandidates.length > 0) {
     lines.push(
-      `  ${parkedCandidates.length} candidate${parkedCandidates.length === 1 ? '' : 's'} parked — scope not in your contribute set (fix the access matrix or the repo's .lore/scope.yml):`,
+      `  ${n(parkedCandidates.length, 'candidate', 'candidates')} parked — scope not in your contribute set (fix the access matrix or the repo's .lore/scope.yml):`,
     );
     for (const p of parkedCandidates) {
       const summary = clean(p.candidateSummary ?? '(no summary)', 200);
@@ -287,15 +343,31 @@ function main() {
     parkedCandidates.length > 0;
   const pausePath = pausePathIn(home);
   const paused = existsSync(pausePath);
+  // Terminal (systemMessage): the compact summary. Agent (additionalContext):
+  // the full per-item detail — same facts, two renderings.
   const messageParts = [];
-  if (paused) messageParts.push(renderPausedNotice(pausePath));
+  const contextParts = [];
+  if (paused) {
+    const notice = renderPausedNotice(pausePath);
+    messageParts.push(notice);
+    contextParts.push(notice);
+  }
   if (hasActivity) {
     messageParts.push(
+      renderSummary({
+        queued: queued.length,
+        parked: parked.length,
+        proposals: proposals.length,
+        drops: drops.length,
+        parkedCandidates: parkedCandidates.length,
+        portalUrl: portalProposalsUrl(process.env.LORE_MCP_URL),
+      }),
+    );
+    contextParts.push(
       renderNotification({ queueCount: queued.length, parked, proposals, drops, parkedCandidates }),
     );
   }
   const message = messageParts.length > 0 ? messageParts.join('\n') : null;
-  const contextParts = message ? [message] : [];
   if (brief) contextParts.push(renderBrief(brief));
   // A scope park (queue entry or per-candidate) is fixable in THIS session
   // with the user's confirmation — instruct the agent to offer, not to make
